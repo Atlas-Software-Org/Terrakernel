@@ -1,8 +1,11 @@
 #include <drivers/serial/serial.hpp>
+#include <drivers/serial/printf.h>
+#include <drivers/serial/print.hpp>
+#include <arch/arch.hpp>
 
 extern "C" void init() {
-	serial::serial_putc('H');
-	serial::serial_putc('i');
+	arch::x86_64::cpu::gdt::initialise();
+	Log::print_status("OK", "GDT Initialised");
 
 	asm volatile ("sti");
 	while (1) {

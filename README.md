@@ -5,13 +5,15 @@ Terrakernel is a hybrid x86_64 kernel.
 During the development of TK the kernel will always be on version v1.0-rc0.
 
 # TODO
+*: WIP
 
 ### Initial stuff
-- [ ] Port printf implementation
+- [x] Port printf implementation
 - [x] Support for some COM1 serial output using port 0x3F8
+- [x] End of initial stuff
 
 ### x86_64 Specific
-- [ ] Write a GDT
+- [ ] Write a GDT*
 - [ ] Write an IDT
 - [ ] Write a physical memory manager
 - [ ] Write a virtual memory manager
@@ -38,9 +40,11 @@ During the development of TK the kernel will always be on version v1.0-rc0.
 - [ ] Try to write an XHCI driver for USB device support
 - [ ] Write some disk drivers, probably AHCI only for now
 - [ ] Some filesystem drivers, probably FAT32 and maybe, maybe, maybe EXT3 or EXT4
+- [ ] End of other
 
 ### Porting software
 - [ ] Port binutils and coreutils
 - [ ] Port DOOM :]
 - [ ] Port a window manager (window server) (probably Xorg)
 - [ ] Port anything else :]
+- [ ] End of porting software
