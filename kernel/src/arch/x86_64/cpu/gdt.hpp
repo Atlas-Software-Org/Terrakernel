@@ -1,5 +1,5 @@
 #ifndef GDT_HPP
-#define GDT_HPP
+#define GDT_HPP 1
 
 #include <cstdint>
 
@@ -58,15 +58,12 @@ typedef struct {
 extern "C" void gdt_load(const gdtr_t* gdtr);
 extern "C" void tss_load();
 
-namespace arch {
-namespace x86_64 {
-namespace cpu {
-namespace gdt {
+namespace arch::x86_64::cpu::gdt {
 
 void initialise();
 void load_gdt();
 void load_tss();
 
-}}}}
+}
 
 #endif /* GDT_HPP */

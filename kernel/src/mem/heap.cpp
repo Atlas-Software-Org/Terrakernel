@@ -1,0 +1,213 @@
+#include <mem/mem.hpp>
+#include <mem/heap.hpp>
+#include <drivers/serial/print.hpp>
+
+void* heap_base = nullptr;
+size_t heap_size = 0;
+
+struct heap_block {
+    void* base;
+    size_t length;
+    bool is_free;
+    heap_block* prev;
+    heap_block* next;
+};
+
+namespace mem::heap {
+
+void initialise() {
+    const size_t initial_size = 0x100000000;
+    const size_t min_heap_size = 0x100000;
+    size_t divisor = 1;
+    heap_base = nullptr;
+
+    while (heap_base == nullptr && initial_size / divisor >= min_heap_size) {
+        heap_size = initial_size / divisor;
+        size_t num_pages = heap_size / 0x1000;
+
+        heap_base = mem::pmm::reserve_heap(num_pages);
+
+        Log::infof("Attempting to reserve heap with size = %zu bytes (%zu pages)", heap_size, num_pages);
+
+        if (heap_base != nullptr) {
+            Log::infof("Heap successfully allocated at %p with size = %zu bytes", heap_base, heap_size);
+        } else {
+            Log::infof("Heap allocation failed for size = %zu bytes", heap_size);
+        }
+
+        divisor *= 2;
+    }
+
+    if (heap_base == nullptr) {
+        Log::errf("PMM: Unable to allocate heap memory");
+    } else {
+        Log::infof("PMM: Heap initialized at %p with size = %zu bytes", heap_base, heap_size);
+    }
+
+    heap_base = (void*)mem::vmm::pa_to_va((uint64_t)heap_base);
+    Log::infof("Heap base converted to VA... (vbase=%p)", heap_base);
+
+    heap_block* first_block = (heap_block*)heap_base;
+    first_block->base = (void*)((uint8_t*)first_block + sizeof(heap_block));
+    first_block->length = heap_size - sizeof(heap_block);
+    first_block->is_free = true;
+    first_block->prev = nullptr;
+    first_block->next = nullptr;
+
+    Log::infof("Heap initialized with first block at %p, size %zu", first_block, first_block->length);
+}
+
+void defragment() {
+    if (heap_base == nullptr) {
+        Log::errf("Heap not initialized, cannot defragment");
+        return;
+    }
+
+    heap_block* current = (heap_block*)heap_base;
+    while (current != nullptr) {
+        if (current->is_free && current->next != nullptr && current->next->is_free) {
+            current->length += current->next->length + sizeof(heap_block);
+            current->next = current->next->next;
+
+            if (current->next != nullptr) {
+                current->next->prev = current;
+            }
+            Log::infof("Defragmented: Merged two free blocks at %p and %p", current, current->next);
+        } else {
+            current = current->next;
+        }
+    }
+}
+
+void* malloc(size_t n) {
+    Log::infof("Malloc: Trying to allocate %zu bytes", n);
+
+    heap_block* current = (heap_block*)heap_base;
+    heap_block* best_fit = nullptr;
+
+    while (current != nullptr) {
+        if (current->is_free && current->length >= n) {
+            if (best_fit == nullptr || current->length < best_fit->length) {
+                best_fit = current;
+            }
+        }
+        current = current->next;
+    }
+
+    if (best_fit == nullptr) {
+        Log::errf("Malloc: No suitable free block found for %zu bytes", n);
+        return nullptr;
+    }
+
+    if (best_fit->length > n + sizeof(heap_block)) {
+        heap_block* new_block = (heap_block*)((uint8_t*)best_fit + sizeof(heap_block) + n);
+        new_block->base = (void*)((uint8_t*)new_block + sizeof(heap_block));
+        new_block->length = best_fit->length - n - sizeof(heap_block);
+        new_block->is_free = true;
+        new_block->next = best_fit->next;
+        if (best_fit->next) {
+            best_fit->next->prev = new_block;
+        }
+        best_fit->next = new_block;
+        new_block->prev = best_fit;
+        best_fit->length = n;
+    }
+
+    best_fit->is_free = false;
+    Log::infof("Malloc: Allocated %zu bytes at %p", n, best_fit->base);
+    return best_fit->base;
+}
+
+void* realloc(void* ptr, size_t n) {
+    Log::infof("Realloc: Trying to reallocate memory at %p to %zu bytes", ptr, n);
+
+    if (ptr == nullptr) {
+        return malloc(n);
+    }
+
+    if (n == 0) {
+        free(ptr);
+        return nullptr;
+    }
+
+    heap_block* current = (heap_block*)heap_base;
+    while (current != nullptr) {
+        if (current->base == ptr) {
+            if (current->length >= n) {
+                current->length = n;
+                Log::infof("Realloc: Reallocated in place at %p to %zu bytes", ptr, n);
+                return current->base;
+            }
+
+            void* new_ptr = malloc(n);
+            if (new_ptr) {
+                memcpy(new_ptr, ptr, current->length);
+                free(ptr);
+                Log::infof("Realloc: Moved memory to new location at %p", new_ptr);
+                return new_ptr;
+            }
+
+            Log::errf("Realloc: Failed to allocate %zu bytes", n);
+            return nullptr;
+        }
+        current = current->next;
+    }
+
+    Log::errf("Realloc: Failed to find memory block for %p", ptr);
+    return nullptr;
+}
+
+void* calloc(size_t n, size_t size) {
+    size_t total_size = n * size;
+    Log::infof("Calloc: Trying to allocate %zu bytes (zeroed)", total_size);
+
+    void* ptr = malloc(total_size);
+    if (ptr) {
+        memset(ptr, 0, total_size);
+        Log::infof("Calloc: Allocated and zeroed memory at %p", ptr);
+    }
+
+    return ptr;
+}
+
+void free(void* ptr) {
+    if (ptr == nullptr) {
+        Log::infof("Free: Attempted to free a null pointer");
+        return;
+    }
+
+    Log::infof("Free: Trying to free memory at %p", ptr);
+
+    heap_block* current = (heap_block*)heap_base;
+    while (current != nullptr) {
+        if (current->base == ptr) {
+            current->is_free = true;
+            Log::infof("Free: Freed memory at %p", ptr);
+
+            if (current->next && current->next->is_free) {
+                current->length += current->next->length + sizeof(heap_block);
+                current->next = current->next->next;
+                if (current->next) {
+                    current->next->prev = current;
+                }
+                Log::infof("Free: Merged with next block at %p", current);
+            }
+
+            if (current->prev && current->prev->is_free) {
+                current->prev->length += current->length + sizeof(heap_block);
+                current->prev->next = current->next;
+                if (current->next) {
+                    current->next->prev = current->prev;
+                }
+                Log::infof("Free: Merged with previous block at %p", current->prev);
+            }
+
+            return;
+        }
+        current = current->next;
+    }
+
+    Log::errf("Free: Attempted to free a block that wasn't allocated: %p", ptr);
+}
+
+}

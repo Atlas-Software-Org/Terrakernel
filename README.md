@@ -13,15 +13,15 @@ During the development of TK the kernel will always be on version v1.0-rc0.
 - [x] End of initial stuff
 
 ### x86_64 Specific
-- [ ] Write a GDT*
-- [ ] Write an IDT
-- [ ] Write a physical memory manager
-- [ ] Write a virtual memory manager
-- [ ] Write a heap
-- [ ] Port uACPI
+- [x] Write a GDT
+- [x] Write an IDT
+- [x] Write a physical memory manager
+- [x] Write a virtual memory manager
+- [x] Write a heap
+- [ ] Write a PIT timer*
+- [ ] Port uACPI*
 - [ ] Parse "APIC" table
 - [ ] Switch to IOAPIC interrupts instead
-- [ ] Write a PIT timer
 - [ ] (MAYBE) Write an APIC timer
 - [ ] (Other) Write a VFS and TMPFS and parse a USTAR Initrd archive
 - [ ] Scheduling

@@ -29,6 +29,7 @@ void initialise() {
     gdt = default_gdt;
 
     tss.rsp0 = (uint64_t)(kernel_stack + sizeof(kernel_stack));
+    tss.ist1 = (uint64_t)(kernel_stack + sizeof(kernel_stack));
     tss.iopb_offset = sizeof(tss_t);
 
     uint64_t base = (uint64_t)&tss;

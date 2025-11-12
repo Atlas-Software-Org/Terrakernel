@@ -12,12 +12,21 @@ namespace x86_64 {
 		uint16_t inw(uint16_t port);
 		void outl(uint16_t port, uint32_t value);
 		uint32_t inl(uint16_t port);
+
+		void io_wait();
 	}
 namespace cpu {
 	namespace gdt {
 		void load_tss();
 		void load_gdt();
 		void initialise();
+	}
+
+	namespace idt {
+		void load_idt();
+		void initialise();
+		void set_descriptor(uint8_t vector, uint64_t isr, uint8_t flags);
+		void clear_descriptor(uint8_t vector);
 	}
 }
 }

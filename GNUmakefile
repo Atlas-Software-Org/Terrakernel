@@ -7,7 +7,7 @@ QEMUFLAGS := -m 6G -serial stdio -M q35
 override IMAGE_NAME := terracotta-$(ARCH)
 
 HOST_CC := cc
-HOST_CFLAGS := -g -O2 -pipe
+HOST_CFLAGS := -g -O0 -pipe
 HOST_CPPFLAGS :=
 HOST_LDFLAGS :=
 HOST_LIBS :=
