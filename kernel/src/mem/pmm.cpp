@@ -184,7 +184,7 @@ void* palloc(size_t npages) {
 void free(void* ptr, size_t npages) {
 	if (!bitmap || !ptr || npages == 0) return;
 
-	uint64_t addr = reinterpret_cast<uint64_t>(ptr);
+	uint64_t addr = (uint64_t)mem::vmm::pa_to_va(reinterpret_cast<uint64_t>(addr));
 
 	if (addr < MIN_ALLOC_ADDR) {
 		Log::errf("PMM: Attempt to free memory below 1 MiB (%p)", ptr);

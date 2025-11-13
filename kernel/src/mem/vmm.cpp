@@ -75,8 +75,6 @@ void mmap(void* paddr, void* vaddr, size_t npages, uint64_t attributes) {
 
         pt[pt_index] = pa | attributes | PAGE_PRESENT;
     }
-
-    Log::infof("Mapped %d pages (vaddr= %p/paddr= %p)\n\r", npages, vaddr, paddr);
 }
 
 void munmap(void* vaddr, size_t npages) {
@@ -101,11 +99,7 @@ void munmap(void* vaddr, size_t npages) {
         if (!(pt[pt_index] & PAGE_PRESENT)) continue;
 
         pt[pt_index] = 0;
-
-        mem::pmm::free((void*)mem::vmm::va_to_pa(va), 1);
     }
-
-    Log::infof("Unmapped %d pages (vaddr= %p)\n\r", npages, vaddr);
 }
 
 void switch_pagetable(uint64_t ptr) {

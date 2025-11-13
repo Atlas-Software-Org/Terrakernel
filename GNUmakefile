@@ -18,6 +18,14 @@ all: $(IMAGE_NAME).iso
 .PHONY: all-hdd
 all-hdd: $(IMAGE_NAME).hdd
 
+.PHONY: initrd
+initrd:
+	@echo "Creating initrd.img..."
+	mkdir -p kernel/bin-$(ARCH)
+	rm -rf kernel/bin-$(ARCH)/initrd.img
+	cd initrd && tar -cf "../kernel/bin-$(ARCH)/initrd.img" -H ustar ./*
+	@echo "initrd.img created at kernel/bin-$(ARCH)/initrd.img"
+
 .PHONY: run
 run: run-$(ARCH)
 
@@ -170,6 +178,7 @@ ifeq ($(ARCH),x86_64)
 	cp -v limine/limine-bios.sys limine/limine-bios-cd.bin limine/limine-uefi-cd.bin iso_root/boot/limine/
 	cp -v limine/BOOTX64.EFI iso_root/EFI/BOOT/
 	cp -v limine/BOOTIA32.EFI iso_root/EFI/BOOT/
+	cp -v kernel/bin-$(ARCH)/initrd.img iso_root/boot/initrd.img
 	xorriso -as mkisofs -R -r -J -b boot/limine/limine-bios-cd.bin \
 		-no-emul-boot -boot-load-size 4 -boot-info-table -hfsplus \
 		-apm-block-size 2048 --efi-boot boot/limine/limine-uefi-cd.bin \

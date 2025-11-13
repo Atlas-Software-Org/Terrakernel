@@ -148,10 +148,13 @@ static inline void _out_null(char character, void* buffer, size_t idx, size_t ma
 
 // internal _putchar wrapper
 extern void serial_putc(char c);
+extern void flanterm_write(void *ctx, const char* s, size_t count);
+extern void* get_ftctx();
 static inline void _out_char(char character, void* buffer, size_t idx, size_t maxlen)
 {
   (void)buffer; (void)idx; (void)maxlen;
   if (character) {
+    flanterm_write(get_ftctx(), &character, 1);
     serial_putc(character);
   }
 }

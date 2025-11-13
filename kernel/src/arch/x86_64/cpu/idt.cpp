@@ -122,21 +122,17 @@ static void irq_set_mask(uint8_t irq) {
 }
 
 void initialise() {
-	pic_remap(0x20, 0x28);
-
 	for (int i = 0; i < 0x1F; i++) {
 		idt_set_vectors[i] = true;
 		set_descriptor(i, exception_stub_table[i], 0x8E);
-		Log::infof("Loaded ISR 0x%016llx", exception_stub_table[i]);
 	}
-
+	
 	idtr.limit = sizeof(idt) - 1;
 	idtr.base = (uint64_t)&idt;
+	
+	pic_remap(0x20, 0x28);
 
 	irq_clear_mask(0);
-	irq_clear_mask(1);
-	irq_clear_mask(2);
-	irq_clear_mask(12);
 
 	load_idt();
 }	
@@ -154,11 +150,6 @@ void set_descriptor(uint8_t vector, uint64_t isr, uint8_t flags) {
 	uint64_t recombined = e->isr_offset_low
                     | ((uint64_t)e->isr_offset_middle << 16)
                     | ((uint64_t)e->isr_offset_high << 32);
-
-	Log::infof(
-		"Loaded ISR (0x%016llX) at: low=0x%016llX, mid=0x%016llX, hi=0x%016llX, addr=0x%016llX",
-		isr, e->isr_offset_low, e->isr_offset_middle, e->isr_offset_high, recombined
-	);
 
 	if (0x20 <= vector && vector < 0x30) {
 		if (vector < 0x28) irq_clear_mask(vector - 0x20);

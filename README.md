@@ -1,8 +1,10 @@
 # The Terrakernel Project
+## Made for Terra
 
 Terrakernel is a hybrid x86_64 kernel.
 
 During the development of TK the kernel will always be on version v1.0-rc0.
+Terra is the operating system I'm planning to use terrakernel for.
 
 # TODO
 *: WIP
@@ -18,12 +20,11 @@ During the development of TK the kernel will always be on version v1.0-rc0.
 - [x] Write a physical memory manager
 - [x] Write a virtual memory manager
 - [x] Write a heap
-- [ ] Write a PIT timer*
-- [ ] Port uACPI*
-- [ ] Parse "APIC" table
-- [ ] Switch to IOAPIC interrupts instead
-- [ ] (MAYBE) Write an APIC timer
-- [ ] (Other) Write a VFS and TMPFS and parse a USTAR Initrd archive
+- [x] Write a PIT timer
+- [x] Switch to fully graphical (flanterm) messages and logs
+- [x] Port uACPI
+- [x] Parse "APIC" table
+- [ ] (Other) Write a VFS and TMPFS and parse a USTAR Initrd archive*
 - [ ] Scheduling
 - [ ] Multiprocessing with SMP
 - [ ] Switching to userspace
@@ -32,7 +33,7 @@ During the development of TK the kernel will always be on version v1.0-rc0.
 - [ ] End of x86_64 stuff
 
 ### Other
-- [ ] Write a VFS and TMPFS and parse a USTAR Initrd archive
+- [ ] Write a VFS and TMPFS and parse a USTAR Initrd archive*
 - [ ] Add support for /dev/XYZ files
 - [ ] Write a PCI driver
 - [ ] Write a PS2 keyboard driver
@@ -44,7 +45,10 @@ During the development of TK the kernel will always be on version v1.0-rc0.
 
 ### Porting software
 - [ ] Port binutils and coreutils
-- [ ] Port DOOM :]
+- [ ] Port DOOM
 - [ ] Port a window manager (window server) (probably Xorg)
-- [ ] Port anything else :]
+- [ ] Port anything else
 - [ ] End of porting software
+
+### Building the kernel
+Check [BUILD_INSTRUCTIONS.md](https://github.com/Atlas-Software-Org/Terrakernel/blob/master/BUILD_INSTRUCTIONS.md)

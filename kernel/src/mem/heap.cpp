@@ -72,7 +72,6 @@ void defragment() {
             if (current->next != nullptr) {
                 current->next->prev = current;
             }
-            Log::infof("Defragmented: Merged two free blocks at %p and %p", current, current->next);
         } else {
             current = current->next;
         }
@@ -80,8 +79,6 @@ void defragment() {
 }
 
 void* malloc(size_t n) {
-    Log::infof("Malloc: Trying to allocate %zu bytes", n);
-
     heap_block* current = (heap_block*)heap_base;
     heap_block* best_fit = nullptr;
 
@@ -114,13 +111,10 @@ void* malloc(size_t n) {
     }
 
     best_fit->is_free = false;
-    Log::infof("Malloc: Allocated %zu bytes at %p", n, best_fit->base);
     return best_fit->base;
 }
 
 void* realloc(void* ptr, size_t n) {
-    Log::infof("Realloc: Trying to reallocate memory at %p to %zu bytes", ptr, n);
-
     if (ptr == nullptr) {
         return malloc(n);
     }
@@ -135,7 +129,6 @@ void* realloc(void* ptr, size_t n) {
         if (current->base == ptr) {
             if (current->length >= n) {
                 current->length = n;
-                Log::infof("Realloc: Reallocated in place at %p to %zu bytes", ptr, n);
                 return current->base;
             }
 
@@ -143,7 +136,6 @@ void* realloc(void* ptr, size_t n) {
             if (new_ptr) {
                 memcpy(new_ptr, ptr, current->length);
                 free(ptr);
-                Log::infof("Realloc: Moved memory to new location at %p", new_ptr);
                 return new_ptr;
             }
 
@@ -159,12 +151,10 @@ void* realloc(void* ptr, size_t n) {
 
 void* calloc(size_t n, size_t size) {
     size_t total_size = n * size;
-    Log::infof("Calloc: Trying to allocate %zu bytes (zeroed)", total_size);
 
     void* ptr = malloc(total_size);
     if (ptr) {
         memset(ptr, 0, total_size);
-        Log::infof("Calloc: Allocated and zeroed memory at %p", ptr);
     }
 
     return ptr;
@@ -172,25 +162,19 @@ void* calloc(size_t n, size_t size) {
 
 void free(void* ptr) {
     if (ptr == nullptr) {
-        Log::infof("Free: Attempted to free a null pointer");
         return;
     }
-
-    Log::infof("Free: Trying to free memory at %p", ptr);
 
     heap_block* current = (heap_block*)heap_base;
     while (current != nullptr) {
         if (current->base == ptr) {
             current->is_free = true;
-            Log::infof("Free: Freed memory at %p", ptr);
-
             if (current->next && current->next->is_free) {
                 current->length += current->next->length + sizeof(heap_block);
                 current->next = current->next->next;
                 if (current->next) {
                     current->next->prev = current;
                 }
-                Log::infof("Free: Merged with next block at %p", current);
             }
 
             if (current->prev && current->prev->is_free) {
@@ -199,7 +183,6 @@ void free(void* ptr) {
                 if (current->next) {
                     current->next->prev = current->prev;
                 }
-                Log::infof("Free: Merged with previous block at %p", current->prev);
             }
 
             return;

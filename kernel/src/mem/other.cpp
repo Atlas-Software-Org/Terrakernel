@@ -1,7 +1,8 @@
 #include <mem/mem.hpp>
 #include <cstddef>
+#include <drivers/serial/print.hpp>
 
-namespace mem {
+extern "C" {
 
 void* memset(void* dest, int value, size_t count) {
     unsigned char* d = static_cast<unsigned char*>(dest);
@@ -50,4 +51,46 @@ int memcmp(const void* ptr1, const void* ptr2, size_t count) {
     return 0;
 }
 
+}
+
+namespace mem {
+
+void* memset(void* dest, int value, size_t count) {
+    return ::memset(dest, value, count);
+}
+
+void* memcpy(void* dest, const void* src, size_t count) {
+    return ::memcpy(dest, src, count);
+}
+
+void* memmove(void* dest, const void* src, size_t count) {
+    return ::memmove(dest, src, count);
+}
+
+int memcmp(const void* ptr1, const void* ptr2, size_t count) {
+    return ::memcmp(ptr1, ptr2, count);
+}
+
+}
+
+#include <panic.hpp>
+
+void* operator new(size_t size) {
+    void* ptr = mem::heap::malloc(size);
+    if (!ptr) panic("K_OUT_OF_MEM");
+    return ptr;
+}
+
+void operator delete(void* ptr) {
+    mem::heap::free(ptr);
+}
+
+void* operator new[](size_t size) {
+    void* ptr = mem::heap::malloc(size);
+    if (!ptr) panic("K_OUT_OF_MEM");
+    return ptr;
+}
+
+void operator delete[](void* ptr) {
+    mem::heap::free(ptr);
 }

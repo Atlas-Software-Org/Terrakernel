@@ -8,7 +8,7 @@ struct pit_interrupt {
 };
 
 static constexpr int PIT_FREQUENCY = 100;
-static uint64_t ticks = 0;
+volatile uint64_t ticks = 0;
 
 static pit_interrupt pit_interrupts[4] = {};
 static int attached = 0;
@@ -49,6 +49,7 @@ static void pit_handler(void* frame) {
     ticks++;
 
     for (int i = 0; i < 4; i++) {
+        break; // For now just break
         if (!pit_interrupts[i].set) continue;
         if (safe_modulo(ticks, pit_interrupts[i].frequency_divisor) == 0) {
             safe_call(pit_interrupts[i].handler);
@@ -87,16 +88,19 @@ void attach_periodic_interrupt(void (*handler)(), uint64_t frequency_divisor) {
 }
 
 void sleep_ms(uint64_t ms) {
+    if (PIT_FREQUENCY == 0) return;
+
     uint64_t current_ticks = ticks;
-    uint64_t blocking_ticks = safe_div(ms * 1193180ULL, 1000ULL);
+    uint64_t blocking_ticks = safe_div(ms * PIT_FREQUENCY, 1000);
     uint64_t final_ticks = current_ticks + blocking_ticks;
 
     while (ticks < final_ticks) {
+        asm volatile("hlt");
     }
 }
 
 uint64_t ns_elapsed_time() {
-    return safe_div(ticks * 1000000000ULL, 1193180ULL);
+    return ticks * 10000000;
 }
 
 }

@@ -51,4 +51,9 @@ namespace mem {
 	int memcmp(const void* ptr1, const void* ptr2, size_t count);
 }
 
+void* operator new(size_t size);
+void operator delete(void* ptr);
+void* operator new[](size_t size);
+void operator delete[](void* ptr);
+
 #endif /* MEM_HPP */

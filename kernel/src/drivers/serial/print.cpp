@@ -2,7 +2,7 @@
 
 namespace Log {
 	void errf(const char* fmt, ...) {
-		printf("[ \033[1;31mERROR\033[0m ] ");
+		printf("[ \x1b[1;31mERROR\x1b[0m ] ");
 		va_list args;
 		va_start(args, fmt);
 		vprintf(fmt, args);
@@ -15,7 +15,7 @@ namespace Log {
 	}
 
 	void warnf(const char* fmt, ...) {
-		printf("[ \033[1;mWARNING\033[0m ] ");
+		printf("[ \x1b[1;mWARNING\x1b[0m ] ");
 		va_list args;
 		va_start(args, fmt);
 		vprintf(fmt, args);
@@ -28,7 +28,7 @@ namespace Log {
 	}
 	
 	void infof(const char* fmt, ...) {
-		printf("[ \033[94mINFO\033[0m ]  ");
+		printf("[ \x1b[94mINFO\x1b[0m ]  ");
 		va_list args;
 		va_start(args, fmt);
 		vprintf(fmt, args);
@@ -41,7 +41,7 @@ namespace Log {
 	}
 	
 	void printf_status(const char* status, const char* fmt, ...) {
-		printf("[ \033[92m%s\033[0m ] ", status);
+		printf("[ \x1b[92m%s\x1b[0m ] ", status);
 		va_list args;
 		va_start(args, fmt);
 		vprintf(fmt, args);
