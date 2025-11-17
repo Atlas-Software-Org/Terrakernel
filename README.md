@@ -24,7 +24,7 @@ Terra is the operating system I'm planning to use terrakernel for.
 - [x] Switch to fully graphical (flanterm) messages and logs
 - [x] Port uACPI
 - [x] Parse "APIC" table
-- [ ] (Other) Write a VFS and TMPFS and parse a USTAR Initrd archive*
+- [x] (Other) Write a VFS and TMPFS and parse a USTAR Initrd archive
 - [ ] Scheduling
 - [ ] Multiprocessing with SMP
 - [ ] Switching to userspace
@@ -33,8 +33,8 @@ Terra is the operating system I'm planning to use terrakernel for.
 - [ ] End of x86_64 stuff
 
 ### Other
-- [ ] Write a VFS and TMPFS and parse a USTAR Initrd archive*
-- [ ] Add support for /dev/XYZ files
+- [x] Write a VFS and TMPFS and parse a USTAR Initrd archive
+- [x] Add support for /dev/XYZ files
 - [ ] Write a PCI driver
 - [ ] Write a PS2 keyboard driver
 - [ ] Write a PS2 mouse driver

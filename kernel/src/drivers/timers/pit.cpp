@@ -8,7 +8,7 @@ struct pit_interrupt {
 };
 
 static constexpr int PIT_FREQUENCY = 100;
-volatile uint64_t ticks = 0;
+static uint64_t ticks = 0;
 
 static pit_interrupt pit_interrupts[4] = {};
 static int attached = 0;
@@ -46,6 +46,8 @@ inline void safe_call(Func function, Args... args) {
 
 __attribute__((interrupt))
 static void pit_handler(void* frame) {
+    (void)frame;
+    
     ticks++;
 
     for (int i = 0; i < 4; i++) {

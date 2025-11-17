@@ -13,11 +13,12 @@ extern "C" {
 __attribute__((section(".limine_requests")))
 volatile struct limine_rsdp_request rsdp_request = {
     .id = LIMINE_RSDP_REQUEST_ID,
-    .revision = 0
+    .revision = 0,
+    .response = nullptr,
 };
 
 uacpi_status uacpi_kernel_get_rsdp(uacpi_phys_addr *out_rsdp_address) {
-    if (!rsdp_request.response || !rsdp_request.response->address) panic("K_NO_RSDP");
+    if (!rsdp_request.response || !rsdp_request.response->address) panic((char*)"K_NO_RSDP");
     *out_rsdp_address = reinterpret_cast<uacpi_phys_addr>(rsdp_request.response->address);
 
     return UACPI_STATUS_OK;
@@ -41,6 +42,7 @@ void uacpi_kernel_unmap(void *addr, uacpi_size len) {
 
 #ifndef UACPI_FORMATTED_LOGGING
 void uacpi_kernel_log(uacpi_log_level lvl, const uacpi_char* s) {
+    (void)lvl;
     printf("[ \x1b[95mUACPI\x1b[0m ] %s", s);
 }
 #else
@@ -58,7 +60,7 @@ void uacpi_kernel_vlog(uacpi_log_level lvl, const uacpi_char* s, uacpi_va_list v
 }
 #endif
 
-uacpi_status uacpi_kernel_initialize(uacpi_init_level current_init_lvl) {return UACPI_STATUS_OK;}
+uacpi_status uacpi_kernel_initialize(uacpi_init_level current_init_lvl) {(void)current_init_lvl;return UACPI_STATUS_OK;}
 void uacpi_kernel_deinitialize(void) {}
 
 struct pci_dev {
@@ -216,7 +218,7 @@ uacpi_status uacpi_kernel_io_read8(
 ) {
     io_entry* e = (io_entry*)handle;
 
-    if (offset > e->len) panic("K_IO_OUT_OF_BOUND");
+    if (offset > e->len) panic((char*)"K_IO_OUT_OF_BOUND");
 
     *out_value = arch::x86_64::io::inb(e->base + offset);
     return UACPI_STATUS_OK;
@@ -227,7 +229,7 @@ uacpi_status uacpi_kernel_io_read16(
 ) {
     io_entry* e = (io_entry*)handle;
 
-    if (offset > e->len) panic("K_IO_OUT_OF_BOUND");
+    if (offset > e->len) panic((char*)"K_IO_OUT_OF_BOUND");
 
     *out_value = arch::x86_64::io::inw(e->base + offset);
     return UACPI_STATUS_OK;
@@ -238,7 +240,7 @@ uacpi_status uacpi_kernel_io_read32(
 ) {
     io_entry* e = (io_entry*)handle;
 
-    if (offset > e->len) panic("K_IO_OUT_OF_BOUND");
+    if (offset > e->len) panic((char*)"K_IO_OUT_OF_BOUND");
 
     *out_value = arch::x86_64::io::inl(e->base + offset);
     return UACPI_STATUS_OK;
@@ -249,7 +251,7 @@ uacpi_status uacpi_kernel_io_write8(
 ) {
     io_entry* e = (io_entry*)handle;
 
-    if (offset > e->len) panic("K_IO_OUT_OF_BOUND");
+    if (offset > e->len) panic((char*)"K_IO_OUT_OF_BOUND");
 
     arch::x86_64::io::outb(e->base + offset, in_value);
     return UACPI_STATUS_OK;
@@ -260,7 +262,7 @@ uacpi_status uacpi_kernel_io_write16(
 ) {
     io_entry* e = (io_entry*)handle;
 
-    if (offset > e->len) panic("K_IO_OUT_OF_BOUND");
+    if (offset > e->len) panic((char*)"K_IO_OUT_OF_BOUND");
 
     arch::x86_64::io::outw(e->base + offset, in_value);
     return UACPI_STATUS_OK;
@@ -271,7 +273,7 @@ uacpi_status uacpi_kernel_io_write32(
 ) {
     io_entry* e = (io_entry*)handle;
 
-    if (offset > e->len) panic("K_IO_OUT_OF_BOUND");
+    if (offset > e->len) panic((char*)"K_IO_OUT_OF_BOUND");
 
     arch::x86_64::io::outl(e->base + offset, in_value);
     return UACPI_STATUS_OK;
@@ -385,8 +387,8 @@ uacpi_bool uacpi_kernel_wait_for_event(uacpi_handle handle, uacpi_u16 timeout) {
     bool op_successful = false;
     if (timeout == 0x0000) {
         event* e = (event*)handle;
-        if (e->signaled == true) return UACPI_STATUS_TIMEOUT;
-        else return UACPI_STATUS_OK;
+        if (e->signaled == true) return false;
+        else return true;
     } else if (timeout == 0xFFFF) {
         target_nsec = (uint64_t)-1;
     }
@@ -399,9 +401,9 @@ uacpi_bool uacpi_kernel_wait_for_event(uacpi_handle handle, uacpi_u16 timeout) {
         }
     }
 
-    if (!op_successful) return UACPI_STATUS_TIMEOUT;
+    if (!op_successful) return false;
 
-    return UACPI_STATUS_OK;
+    return true;
 }
 
 void uacpi_kernel_signal_event(uacpi_handle handle) {
@@ -415,7 +417,8 @@ void uacpi_kernel_reset_event(uacpi_handle handle) {
 }
 
 uacpi_status uacpi_kernel_handle_firmware_request(uacpi_firmware_request* request) {
-    return UACPI_STATUS_NOT_FOUND;
+    (void)request;
+    return UACPI_STATUS_OK;
 }
 
 struct interrupt {
@@ -447,6 +450,7 @@ uacpi_status uacpi_kernel_install_interrupt_handler(
 uacpi_status uacpi_kernel_uninstall_interrupt_handler(
     uacpi_interrupt_handler unused, uacpi_handle irq_handle
 ) {
+    (void)unused;
     interrupt* i = (interrupt*)irq_handle;
     arch::x86_64::cpu::idt::clear_descriptor(i->vector);
 
@@ -479,6 +483,7 @@ uacpi_cpu_flags uacpi_kernel_lock_spinlock(uacpi_handle handle) {
 }
 
 void uacpi_kernel_unlock_spinlock(uacpi_handle handle, uacpi_cpu_flags flags) {
+    (void)flags;
     spinlock* s = (spinlock*)handle;
     s->locked = false;
 }
@@ -492,6 +497,7 @@ struct work {
 uacpi_status uacpi_kernel_schedule_work(
     uacpi_work_type type, uacpi_work_handler handler, uacpi_handle ctx
 ) {
+    (void)ctx;
     work* w = (work*)mem::heap::malloc(sizeof(work));
     if (!w) return UACPI_STATUS_OUT_OF_MEMORY;
     w->signaled = false;

@@ -1,373 +1,469 @@
 #include "unrealfs.hpp"
-#include <mem/mem.hpp>
 #include <drivers/serial/print.hpp>
+#include <mem/mem.hpp>
 
-namespace unreal_fs {
+struct unreal_fd {
+    char *name;
+    int fd_id;
+    bool is_dir;
+    bool is_root;
+    unreal_fd* parent;
 
-unreal_node** nodes = nullptr;
-uint64_t node_count = 0;
-const char* ROOT_DIR_NAME = "/";
-static file_handle handles[512];
+    struct {
+        unreal_fd** child_fds;
+        size_t num_fds;
+        size_t fd_capacity;
+    } children;
 
-size_t u_strlen(const char* str) {
-    size_t len = 0;
-    while (str && *str++) len++;
-    return len;
+    uint64_t offset;
+    uint64_t capacity;
+
+    void* data_base;
+    size_t data_length;
+};
+
+static size_t u_strlen(const char* s) {
+    size_t n = 0;
+    if (!s) return 0;
+    while (s[n]) n++;
+    return n;
 }
 
-int u_strcmp(const char* a, const char* b) {
-    while (*a && (*a == *b)) { a++; b++; }
-    return *(unsigned char*)a - *(unsigned char*)b;
+static char* u_strcpy(char* dst, const char* src) {
+    char* r = dst;
+    while ((*dst++ = *src++)) {}
+    return r;
 }
 
-char* u_strcpy(char* dest, const char* src) {
-    char* p = dest;
-    while ((*p++ = *src++));
-    return dest;
-}
-
-const char* u_strchr(const char* str, char c) {
-    while (str && *str) {
-        if (*str == c) return str;
-        str++;
-    }
-    return nullptr;
-}
-
-static char* u_strdup(const char* s) {
-    size_t len = u_strlen(s);
-    char* dup = static_cast<char*>(mem::heap::malloc(len + 1));
-    if (!dup) return nullptr;
-    for (size_t i = 0; i <= len; ++i) dup[i] = s[i];
-    return dup;
-}
-
-char* u_strtok(char* str, const char* delim) {
-    char* *saveptr = nullptr;
-    if (!str && !*saveptr) return nullptr;
-
-    char* s = str ? str : *saveptr;
-    if (!s) return nullptr;
-
-    while (*s && u_strchr(delim, *s)) s++;
-
-    if (!*s) {
-        *saveptr = nullptr;
-        return nullptr;
-    }
-
-    char* token_start = s;
-
-    while (*s && !u_strchr(delim, *s)) s++;
-
-    if (*s) {
-        *s = '\0';
-        *saveptr = s + 1;
-    } else {
-        *saveptr = nullptr;
-    }
-
-    return token_start;
-}
-
-char* u_strncpy(char* dest, const char* src, size_t n) {
-    if (!dest || !src || n == 0) return dest;
-
+static char* u_strncpy(char* dst, const char* src, size_t n) {
     size_t i = 0;
-    for (; i < n - 1 && src[i] != '\0'; ++i) {
-        dest[i] = src[i];
-    }
-
-    dest[i] = '\0';
-
-    return dest;
+    for (; i < n && src[i]; i++)
+        dst[i] = src[i];
+    for (; i < n; i++)
+        dst[i] = 0;
+    return dst;
 }
 
-char* u_strcat(char* dest, const char* src) {
-    if (!dest || !src) return dest;
-
-    char* d = dest;
-    while (*d) d++;
-
-    while (*src) {
-        *d++ = *src++;
-    }
-
-    *d = '\0';
-    return dest;
+static int u_strcmp(const char* a, const char* b) {
+    while (*a && (*a == *b)) { a++; b++; }
+    return *(const unsigned char*)a - *(const unsigned char*)b;
 }
 
-static unreal_node* find_child(unreal_node* parent, const char* name) {
-    if (!parent || !name || parent->type != unreal_type::DIRECTORY) return nullptr;
-    for (size_t i = 0; i < parent->children_count; ++i) {
-        unreal_node* c = parent->children[i];
-        if (c && u_strcmp(c->name, name) == 0) return c;
-    }
-    return nullptr;
-}
+static char* u_strtok_r(char* str, const char* delim, char** saveptr) {
+    char* token;
+    if (str) *saveptr = str;
+    if (!*saveptr) return nullptr;
 
-unreal_node* resolve_path(const char* path) {
-    if (!path || !*path || path[0] != '/') return nullptr;
-    if (node_count == 0 || !nodes || !nodes[0]) return nullptr;
-    unreal_node* current = nodes[0];
-    const char* p = path + 1;
-    const char* segment_start = p;
-    char segment[256];
-    while (*p) {
-        if (*p == '/') {
-            size_t len = static_cast<size_t>(p - segment_start);
-            if (len == 0) { p++; segment_start = p; continue; }
-            if (len >= sizeof(segment)) return nullptr;
-            mem::memcpy(segment, segment_start, len);
-            segment[len] = '\0';
-            current = find_child(current, segment);
-            if (!current) return nullptr;
-            segment_start = p + 1;
+    char* s = *saveptr;
+
+    while (*s) {
+        bool is_delim = false;
+        for (size_t i = 0; delim[i]; i++) {
+            if (*s == delim[i]) { is_delim = true; break; }
         }
-        p++;
+        if (!is_delim) break;
+        s++;
     }
-    if (*segment_start) {
-        size_t len = static_cast<size_t>(p - segment_start);
-        if (len >= sizeof(segment)) return nullptr;
-        mem::memcpy(segment, segment_start, len);
-        segment[len] = '\0';
-        current = find_child(current, segment);
-    }
-    return current;
-}
 
-unreal_node* create_file(const char* name, char* path) {
-    Log::infof("Creating file: %s in path: %s\n\r", name, path);
-    unreal_node* parent = resolve_path(path);
-    if (!parent || parent->type != unreal_type::DIRECTORY) return nullptr;
-    unreal_node* node = static_cast<unreal_node*>(mem::heap::malloc(sizeof(unreal_node)));
-    if (!node) return nullptr;
-    node->name = u_strdup(name);
-    node->type = unreal_type::FILE;
-    node->parent = parent;
-    node->children = nullptr;
-    node->children_count = 0;
-    node->buffer = nullptr;
-    node->size = 0;
-    node->open = false;
-    parent->children = static_cast<unreal_node**>(mem::heap::realloc(parent->children, sizeof(unreal_node*) * (parent->children_count + 1)));
-    parent->children[parent->children_count++] = node;
-    nodes = static_cast<unreal_node**>(mem::heap::realloc(nodes, sizeof(unreal_node*) * (node_count + 1)));
-    nodes[node_count++] = node;
-    return node;
-}
+    if (*s == '\0') { *saveptr = nullptr; return nullptr; }
 
-unreal_node* create_directory(const char* full_path) {
-    if (!full_path || u_strlen(full_path) == 0) return nullptr;
-    if (!nodes[0]) return nullptr;
+    token = s;
 
-    unreal_node* parent = nodes[0];
-    char path_copy[512];
-    u_strncpy(path_copy, full_path, sizeof(path_copy));
-    path_copy[sizeof(path_copy)-1] = 0;
-
-    char* token = u_strtok(path_copy, "/");
-    while (token) {
-        unreal_node* child = nullptr;
-
-        for (size_t i = 0; i < parent->children_count; ++i) {
-            if (u_strcmp(parent->children[i]->name, token) == 0 &&
-                parent->children[i]->type == unreal_type::DIRECTORY) {
-                child = parent->children[i];
-                break;
+    while (*s) {
+        for (size_t i = 0; delim[i]; i++) {
+            if (*s == delim[i]) {
+                *s = '\0';
+                *saveptr = s + 1;
+                return token;
             }
         }
-
-        if (!child) {
-            child = static_cast<unreal_node*>(mem::heap::malloc(sizeof(unreal_node)));
-            if (!child) return nullptr;
-
-            child->name = u_strdup(token);
-            child->type = unreal_type::DIRECTORY;
-            child->parent = parent;
-            child->children = nullptr;
-            child->children_count = 0;
-            child->buffer = nullptr;
-            child->size = 0;
-            child->open = false;
-
-            parent->children = static_cast<unreal_node**>(
-                mem::heap::realloc(parent->children, sizeof(unreal_node*) * (parent->children_count + 1))
-            );
-            parent->children[parent->children_count++] = child;
-
-            nodes = static_cast<unreal_node**>(
-                mem::heap::realloc(nodes, sizeof(unreal_node*) * (node_count + 1))
-            );
-            nodes[node_count++] = child;
-        }
-
-        parent = child;
-        token = u_strtok(nullptr, "/");
+        s++;
     }
 
-    return parent;
+    *saveptr = nullptr;
+    return token;
 }
 
-unreal_node* delete_node(const char* name, char* path) {
-    (void)path;
-    for (uint64_t i = 0; i < node_count; ++i) {
-        if (nodes[i] && u_strcmp(nodes[i]->name, name) == 0) {
-            unreal_node* removed = nodes[i];
-            mem::heap::free((void*)removed->name);
-            mem::heap::free(removed->buffer);
-            mem::heap::free(removed);
-            nodes[i] = nullptr;
-            return removed;
-        }
+static char* u_strcat(const char* s1, const char* s2) {
+    if (!s1) s1 = "";
+    if (!s2) s2 = "";
+
+    size_t len1 = u_strlen(s1);
+    size_t len2 = u_strlen(s2);
+
+    char* result = (char*)mem::heap::malloc(len1 + len2 + 1);
+    if (!result) return NULL;
+
+    mem::memcpy(result, s1, len1);
+    mem::memcpy(result + len1, s2, len2);
+
+    result[len1 + len2] = '\0';
+
+    return result;
+}
+
+static int next_fd_id = 1;
+
+namespace ufs {
+
+unreal_fd* root_fd = nullptr;
+
+static unreal_fd* alloc_fd(const char* name, bool is_dir, unreal_fd* parent) {
+    unreal_fd* f = (unreal_fd*)mem::heap::calloc(1, sizeof(unreal_fd));
+    f->fd_id = next_fd_id++;
+    f->is_dir = is_dir;
+    f->is_root = (parent == nullptr);
+    f->parent = parent;
+
+    size_t len = u_strlen(name) + 1;
+    f->name = (char*)mem::heap::malloc(len);
+    u_strcpy(f->name, name);
+
+    if (is_dir) {
+        f->children.fd_capacity = 8;
+        f->children.child_fds = (unreal_fd**)mem::heap::malloc(
+            8 * sizeof(unreal_fd*)
+        );
+    }
+
+    return f;
+}
+
+static void add_child(unreal_fd* parent, unreal_fd* child) {
+    if (parent->children.num_fds >= parent->children.fd_capacity) {
+        size_t newcap = parent->children.fd_capacity * 2;
+        parent->children.child_fds = (unreal_fd**)mem::heap::realloc(
+            parent->children.child_fds,
+            newcap * sizeof(unreal_fd*)
+        );
+        parent->children.fd_capacity = newcap;
+    }
+
+    parent->children.child_fds[parent->children.num_fds++] = child;
+}
+
+static unreal_fd* walk(unreal_fd* dir, const char* name) {
+    if (!dir || !dir->is_dir) return nullptr;
+    for (size_t i = 0; i < dir->children.num_fds; i++) {
+        unreal_fd* c = dir->children.child_fds[i];
+        if (!c) continue;
+        if (u_strcmp(c->name, name) == 0)
+            return c;
     }
     return nullptr;
 }
 
-vfd_t open(const char* path) {
-    unreal_node* n = resolve_path(path);
-    if (!n || n->type != unreal_type::FILE) return -1;
-    for (int i = 0; i < 512; ++i) {
-        if (!handles[i].used) {
-            handles[i].used = true;
-            handles[i].node = n;
-            n->open = true;
-            return i;
+static unreal_fd* resolve_path(const char* path, bool create_missing, bool final_is_dir) {
+    if (!root_fd || !path || path[0] != '/') return nullptr;
+
+    char buf[512];
+    u_strncpy(buf, path, sizeof(buf));
+    buf[sizeof(buf)-1] = 0;
+
+    char* saveptr;
+    char* token = u_strtok_r(buf, "/", &saveptr);
+
+    unreal_fd* curr = root_fd;
+    int depth = 0;
+
+    while (token) {
+        depth++;
+        if (depth > 1024) { Log::errf("resolve_path: too deep"); return nullptr; }
+
+        unreal_fd* next = walk(curr, token);
+
+        if (!next) {
+            if (!create_missing) return nullptr;
+
+            char* lookahead = u_strtok_r(nullptr, "/", &saveptr);
+            bool make_dir = (lookahead != nullptr) || final_is_dir;
+
+            next = alloc_fd(token, make_dir, curr);
+            add_child(curr, next);
+
+            token = lookahead;
+            curr = next;
+            continue;
         }
-    }
-    return -1;
-}
 
-void close(vfd_t vfd) {
-    if (vfd < 0 || vfd >= 512) return;
-    if (handles[vfd].used) {
-        handles[vfd].node->open = false;
-        handles[vfd].used = false;
-        handles[vfd].node = nullptr;
-    }
-}
-
-int64_t read(vfd_t vfd, void* buffer, size_t size) {
-    if (vfd < 0 || vfd >= 512) return 0;
-    file_handle* h = &handles[vfd];
-    if (!h->used || !h->node || !h->node->buffer) return 0;
-    size_t to_read = (size < h->node->size) ? size : h->node->size;
-    mem::memcpy(buffer, h->node->buffer, to_read);
-    return static_cast<int64_t>(to_read);
-}
-
-int64_t write(vfd_t vfd, void* buffer, size_t offset, size_t size) {
-    if (vfd < 0 || vfd >= 512) return 0;
-
-    file_handle* h = &handles[vfd];
-    if (!h->used || !h->node || h->node->type != unreal_type::FILE) return 0;
-
-    size_t new_size = offset + size;
-    if (!h->node->buffer) {
-        h->node->buffer = reinterpret_cast<char*>(mem::heap::malloc(new_size));
-    } else {
-        h->node->buffer = reinterpret_cast<char*>(mem::heap::realloc(h->node->buffer, new_size));
+        curr = next;
+        token = u_strtok_r(nullptr, "/", &saveptr);
     }
 
-    if (!h->node->buffer) return 0;
-
-    mem::memcpy(h->node->buffer + offset, buffer, size);
-
-    if (new_size > h->node->size) {
-        h->node->size = new_size;
-    }
-
-    return static_cast<int64_t>(size);
-}
-
-int64_t stat_size(vfd_t vfd) {
-    if (vfd < 0 || vfd >= 512) return -1;
-    file_handle* h = &handles[vfd];
-    if (!h->used || !h->node) return -1;
-    if (h->node->type != unreal_type::FILE) return -1;
-    return h->node->size;
+    return curr;
 }
 
 void initialise() {
-    node_count = 1;
-    for (int i = 0; i < 512; ++i) {
-        handles[i].used = false;
-        handles[i].node = nullptr;
-    }
-    nodes = static_cast<unreal_node**>(mem::heap::malloc(sizeof(unreal_node*)));
-    unreal_node* root = static_cast<unreal_node*>(mem::heap::malloc(sizeof(unreal_node)));
-    root->name = const_cast<char*>(ROOT_DIR_NAME);
-    root->type = unreal_type::DIRECTORY;
-    root->parent = nullptr;
-    root->children = nullptr;
-    root->children_count = 0;
-    root->buffer = nullptr;
-    root->size = 0;
-    root->open = false;
-    nodes[0] = root;
+    root_fd = alloc_fd("/", true, nullptr);
+    Log::infof("FS: root initialised");
 }
 
-void mount_virtual_disk(void* module_base, size_t module_size, const char* target_mount_path) {
-    using namespace unreal_fs;
+int fd_error(int fd) {
+    return 0;
+}
 
-    Log::infof("Mounting virtual disk at %s\n\rModule base: %p, size: %u bytes",
-               target_mount_path, module_base, static_cast<unsigned int>(module_size));
+static unreal_fd* find_fd(unreal_fd* node, int target_fd) {
+    if (!node) return nullptr;
+    if (node->fd_id == target_fd) return node;
+    if (!node->is_dir) return nullptr;
 
-    ustar_parser::ustar_file* ustar_files = nullptr;
-    uint64_t archived_file_count = 0;
+    for (size_t i = 0; i < node->children.num_fds; i++) {
+        unreal_fd* res = find_fd(node->children.child_fds[i], target_fd);
+        if (res) return res;
+    }
+    return nullptr;
+}
 
-    ustar_parser::parse_ustar_archive(
-        reinterpret_cast<uint8_t*>(module_base),
-        module_size,
-        &ustar_files,
-        &archived_file_count
-    );
+int open(const char* path, int mode) {
+    if (mode == 0) {
+        unreal_fd* f = resolve_path(path, false, false);
+        if (!f || f->is_dir) return -1;
+        return f->fd_id;
+    }
 
-    for (uint64_t i = 0; i < archived_file_count; ++i) {
-        auto* entry = &ustar_files[i];
-        if (!entry || !entry->path) continue;
+    unreal_fd* f = resolve_path(path, true, false);
+    if (!f) return -1;
 
-        const char* last_slash = nullptr;
-        for (const char* p = entry->path; *p; ++p) {
-            if (*p == '/') last_slash = p;
+    if (!f->data_base) {
+        f->data_base = mem::heap::malloc(1);
+        f->data_length = 0;
+    }
+
+    return f->fd_id;
+}
+
+int close(int fd) { return 0; }
+
+size_t read(int fd, void* buf, size_t count, int mode) {
+    (void)mode;
+    unreal_fd* f = find_fd(root_fd, fd);
+    if (!f || f->is_dir) return 0;
+
+    if (count > f->data_length) count = f->data_length;
+    mem::memcpy(buf, f->data_base, count);
+    return count;
+}
+
+size_t write(int fd, const void* buf, size_t count, int mode) {
+    unreal_fd* f = find_fd(root_fd, fd);
+    if (!f || f->is_dir || !buf || count == 0) return 0;
+
+    size_t pos = f->offset;
+    if (mode == WRITE_MODE_APPEND) {
+        pos = f->data_length;
+    } else if (mode == WRITE_MODE_DEFAULT) {
+        pos = f->data_length;
+    } else if (mode == WRITE_MODE_OVERWRITE) {
+        if (pos > f->data_length) pos = f->data_length;
+    } else if (mode == WRITE_MODE_INSERT) {
+        if (pos > f->data_length) pos = f->data_length;
+    } else if (mode == WRITE_MODE_OFFSET) {
+    }
+
+    size_t new_length = (mode == WRITE_MODE_INSERT) ? f->data_length + count : (pos + count);
+    if (new_length > f->capacity) {
+        size_t new_cap = (new_length + 1023) & ~1023;
+        void* new_base = mem::heap::realloc(f->data_base, new_cap);
+        if (!new_base) return 0;
+        f->data_base = new_base;
+        f->capacity = new_cap;
+    }
+
+    char* base = (char*)f->data_base;
+
+    if (mode == WRITE_MODE_INSERT) {
+        mem::memmove(base + pos + count, base + pos, f->data_length - pos);
+        mem::memcpy(base + pos, buf, count);
+        f->data_length += count;
+    } else {
+        mem::memcpy(base + pos, buf, count);
+        if (pos + count > f->data_length)
+            f->data_length = pos + count;
+    }
+
+    if (mode != WRITE_MODE_OFFSET)
+        f->offset = pos + count;
+
+    return count;
+}
+
+int mkdir(const char* path) {
+    unreal_fd* f = resolve_path(path, true, true);
+    return f ? 0 : -1;
+}
+
+int rmkdir(const char* path) {
+    unreal_fd* f = resolve_path(path, false, true);
+    if (!f || !f->is_dir || f->children.num_fds != 0) return -1;
+
+    unreal_fd* p = f->parent;
+    if (!p) return -1;
+
+    for (size_t i = 0; i < p->children.num_fds; i++) {
+        if (p->children.child_fds[i] == f) {
+            p->children.child_fds[i] =
+                p->children.child_fds[p->children.num_fds - 1];
+            p->children.num_fds--;
+            break;
         }
+    }
 
-        unreal_node* parent = nullptr;
+    mem::heap::free(f->name);
+    mem::heap::free(f->data_base);
+    mem::heap::free(f);
+    return 0;
+}
 
-        if (last_slash) {
-            size_t dir_len = static_cast<size_t>(last_slash - entry->path);
-            char dir_path[512];
-            u_strncpy(dir_path, entry->path, dir_len);
-            dir_path[dir_len] = '\0';
+int rmdir(const char* path) { return rmkdir(path); }
 
-            char full_path[1024];
-            u_strcpy(full_path, target_mount_path);
-            u_strcat(full_path, "/");
-            u_strcat(full_path, dir_path);
+static void rr_free(unreal_fd* f) {
+    for (size_t i = 0; i < f->children.num_fds; i++)
+        rr_free(f->children.child_fds[i]);
 
-            parent = create_directory(full_path);
+    mem::heap::free(f->name);
+    mem::heap::free(f->data_base);
+    mem::heap::free(f->children.child_fds);
+    mem::heap::free(f);
+}
+
+int rrmdir(const char* path) {
+    unreal_fd* f = resolve_path(path, false, true);
+    if (!f || f == root_fd) return -1;
+
+    unreal_fd* p = f->parent;
+    if (!p) return -1;
+
+    for (size_t i = 0; i < p->children.num_fds; i++) {
+        if (p->children.child_fds[i] == f) {
+            p->children.child_fds[i] =
+                p->children.child_fds[p->children.num_fds - 1];
+            p->children.num_fds--;
+            break;
+        }
+    }
+
+    rr_free(f);
+    return 0;
+}
+
+int opendir(const char* path, void* outbuf) {
+    unreal_fd* f = resolve_path(path, false, true);
+    return (f && f->is_dir) ? f->fd_id : -1;
+}
+
+int closedir(int fd) { return 0; }
+
+int stat(int fd, void* outbuf, size_t bufsize) {
+    struct S { bool is_dir; size_t size; } sbuf;
+
+    unreal_fd* f = find_fd(root_fd, fd);
+    if (!f) return -1;
+
+    sbuf.is_dir = f->is_dir;
+    sbuf.size   = f->data_length;
+
+    if (bufsize < sizeof(sbuf)) return -1;
+
+    mem::memcpy(outbuf, &sbuf, sizeof(sbuf));
+    return 0;
+}
+
+void list_dir(int dir_fd, int indent) {
+    unreal_fd* dir = find_fd(root_fd, dir_fd);
+    if (!dir || !dir->is_dir) {
+        Log::errf("list_dir: invalid fd %d", dir_fd);
+        return;
+    }
+
+    for (size_t i = 0; i < dir->children.num_fds; i++) {
+        unreal_fd* child = dir->children.child_fds[i];
+
+        for (int j = 0; j < indent; j++) Log::info("  ");
+
+        printf("%s%s\n", child->name, child->is_dir ? "/" : "");
+
+        if (child->is_dir)
+            list_dir(child->fd_id, indent + 1);
+    }
+}
+
+void mount_file(char* filename, char* path, char* path_prefix, char* thisdir, char* parentdir, void* database, size_t filelen) {
+    if (path[0] == '.') path++;
+    if (path[0] == '/') path++;
+
+    char* full_path = u_strcat(path_prefix, path);
+    if (!full_path) return;
+
+    int fd = open(full_path, OPEN_MODE_CREATE);
+    if (fd >= 0) {
+        write(fd, database, filelen, WRITE_MODE_OVERWRITE);
+        close(fd);
+    } else {
+        Log::errf("Failed to open file");
+    }
+
+    printf("MOUNT: Mounted file %s to path %s...\n", filename, full_path);
+
+    mem::heap::free(full_path);
+}
+
+struct ustar_inode {
+    char name[100];
+    char mode[8];
+    char uid[8];
+    char gid[8];
+    char size[12];
+    char mtime[12];
+    char chksum[8];
+    char typeflag;
+    char linkname[100];
+    char magic[6];
+    char version[2];
+    char uname[32];
+    char gname[32];
+    char devmajor[8];
+    char devminor[8];
+    char prefix[155];
+    char padding[12];
+} __attribute__((packed));
+
+static size_t parse_octal(const char* str, size_t n) {
+    size_t val = 0;
+    for (size_t i = 0; i < n && str[i] >= '0' && str[i] <= '7'; i++) {
+        val = (val << 3) + (str[i] - '0');
+    }
+    return val;
+}
+
+void load_ustar_archive(void* base, size_t size) {
+    uint8_t* ptr = (uint8_t*)base;
+    uint8_t* end = ptr + size;
+
+    while (ptr + sizeof(struct ustar_inode) <= end) {
+        struct ustar_inode* header = (struct ustar_inode*)ptr;
+
+        int is_empty = 1;
+        for (int i = 0; i < 512; i++) {
+            if (ptr[i] != 0) { is_empty = 0; break; }
+        }
+        if (is_empty) break;
+
+        size_t filesize = parse_octal(header->size, sizeof(header->size));
+
+        char fullpath[256] = {0};
+        if (header->prefix[0]) {
+            snprintf(fullpath, sizeof(fullpath), "%s/%s", header->prefix, header->name);
         } else {
-            parent = resolve_path(target_mount_path);
-            if (!parent) parent = resolve_path("/");
+            snprintf(fullpath, sizeof(fullpath), "%s", header->name);
         }
 
-        if (entry->type == 0) {
-            const char* file_name = last_slash ? last_slash + 1 : entry->path;
-            unreal_node* file_node = create_file(file_name, (char*)parent->name);
-            if (file_node && entry->data && entry->size > 0) {
-                vfd_t fd = open(file_node->name);
-                if (fd >= 0) {
-                    write(fd, entry->data, 0, entry->size);
-                    close(fd);
-                }
-            }
-        }
-    }
+        char* path_prefix = "/initrd/";
 
-    for (uint64_t i = 0; i < archived_file_count; ++i) {
-        mem::heap::free(ustar_files[i].path);
+        mount_file(header->name, fullpath, path_prefix, ".", "..", ptr + 512, filesize);
+
+        size_t total_size = 512 + ((filesize + 511) & ~511);
+        ptr += total_size;
     }
-    mem::heap::free(ustar_files);
 }
 
 }

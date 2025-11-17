@@ -147,10 +147,6 @@ void set_descriptor(uint8_t vector, uint64_t isr, uint8_t flags) {
 	e->isr_offset_high = (isr >> 32) & 0xFFFFFFFF;
 	e->always_zero = 0;
 
-	uint64_t recombined = e->isr_offset_low
-                    | ((uint64_t)e->isr_offset_middle << 16)
-                    | ((uint64_t)e->isr_offset_high << 32);
-
 	if (0x20 <= vector && vector < 0x30) {
 		if (vector < 0x28) irq_clear_mask(vector - 0x20);
 		else irq_clear_mask(vector - 0x28 + 8);

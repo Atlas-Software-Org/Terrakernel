@@ -6,6 +6,7 @@ __attribute__((section(".limine_requests")))
 volatile limine_memmap_request memmap_request = {
 	.id = LIMINE_MEMMAP_REQUEST_ID,
 	.revision = 0,
+	.response = nullptr,
 };
 
 #define PAGE_SIZE 4096
@@ -184,7 +185,7 @@ void* palloc(size_t npages) {
 void free(void* ptr, size_t npages) {
 	if (!bitmap || !ptr || npages == 0) return;
 
-	uint64_t addr = (uint64_t)mem::vmm::pa_to_va(reinterpret_cast<uint64_t>(addr));
+	uint64_t addr = (uint64_t)mem::vmm::pa_to_va((uint64_t)ptr);
 
 	if (addr < MIN_ALLOC_ADDR) {
 		Log::errf("PMM: Attempt to free memory below 1 MiB (%p)", ptr);

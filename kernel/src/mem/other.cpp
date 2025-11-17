@@ -77,7 +77,7 @@ int memcmp(const void* ptr1, const void* ptr2, size_t count) {
 
 void* operator new(size_t size) {
     void* ptr = mem::heap::malloc(size);
-    if (!ptr) panic("K_OUT_OF_MEM");
+    if (!ptr) panic((char*)"K_OUT_OF_MEM");
     return ptr;
 }
 
@@ -87,10 +87,20 @@ void operator delete(void* ptr) {
 
 void* operator new[](size_t size) {
     void* ptr = mem::heap::malloc(size);
-    if (!ptr) panic("K_OUT_OF_MEM");
+    if (!ptr) panic((char*)"K_OUT_OF_MEM");
     return ptr;
 }
 
 void operator delete[](void* ptr) {
+    mem::heap::free(ptr);
+}
+
+void operator delete(void* ptr, uint64_t size) {
+    (void)size;
+    mem::heap::free(ptr);
+}
+
+void operator delete [](void* ptr, uint64_t size) {
+    (void)size;
     mem::heap::free(ptr);
 }
