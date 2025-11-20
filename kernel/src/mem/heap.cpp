@@ -27,25 +27,18 @@ void initialise() {
 
         heap_base = mem::pmm::reserve_heap(num_pages);
 
-        Log::infof("Attempting to reserve heap with size = %zu bytes (%zu pages)", heap_size, num_pages);
-
         if (heap_base != nullptr) {
-            Log::infof("Heap successfully allocated at %p with size = %zu bytes", heap_base, heap_size);
         } else {
-            Log::infof("Heap allocation failed for size = %zu bytes", heap_size);
         }
 
         divisor *= 2;
     }
 
     if (heap_base == nullptr) {
-        Log::errf("PMM: Unable to allocate heap memory");
     } else {
-        Log::infof("PMM: Heap initialized at %p with size = %zu bytes", heap_base, heap_size);
     }
 
     heap_base = (void*)mem::vmm::pa_to_va((uint64_t)heap_base);
-    Log::infof("Heap base converted to VA... (vbase=%p)", heap_base);
 
     heap_block* first_block = (heap_block*)heap_base;
     first_block->base = (void*)((uint8_t*)first_block + sizeof(heap_block));
@@ -53,8 +46,6 @@ void initialise() {
     first_block->is_free = true;
     first_block->prev = nullptr;
     first_block->next = nullptr;
-
-    Log::infof("Heap initialized with first block at %p, size %zu", first_block, first_block->length);
 }
 
 void defragment() {
@@ -107,6 +98,64 @@ void* malloc(size_t n) {
         }
         best_fit->next = new_block;
         new_block->prev = best_fit;
+        best_fit->length = n;
+    }
+
+    best_fit->is_free = false;
+    return best_fit->base;
+}
+
+void* malloc_aligned(size_t n, size_t alignment) {
+    if ((alignment & (alignment - 1)) != 0) return nullptr;
+
+    heap_block* current = (heap_block*)heap_base;
+    heap_block* best_fit = nullptr;
+
+    while (current != nullptr) {
+        if (current->is_free && current->length >= n + alignment) {
+            if (best_fit == nullptr || current->length < best_fit->length) {
+                best_fit = current;
+            }
+        }
+        current = current->next;
+    }
+
+    if (best_fit == nullptr) {
+        Log::errf("malloc_aligned: No suitable free block found for %zu bytes", n);
+        return nullptr;
+    }
+
+    uintptr_t raw_addr = (uintptr_t)best_fit->base;
+    uintptr_t aligned_addr = (raw_addr + alignment - 1) & ~(alignment - 1);
+    size_t padding = aligned_addr - raw_addr;
+
+    if (padding > 0) {
+        if (best_fit->length <= padding + sizeof(heap_block)) {
+            return nullptr;
+        }
+
+        heap_block* pad_block = (heap_block*)((uint8_t*)best_fit + sizeof(heap_block) + padding);
+        pad_block->base = (void*)((uint8_t*)pad_block + sizeof(heap_block));
+        pad_block->length = best_fit->length - padding - sizeof(heap_block);
+        pad_block->is_free = true;
+        pad_block->next = best_fit->next;
+        if (best_fit->next) best_fit->next->prev = pad_block;
+        pad_block->prev = best_fit;
+
+        best_fit->length = padding;
+        best_fit->next = pad_block;
+        best_fit = pad_block;
+    }
+
+    if (best_fit->length > n + sizeof(heap_block)) {
+        heap_block* new_block = (heap_block*)((uint8_t*)best_fit + sizeof(heap_block) + n);
+        new_block->base = (void*)((uint8_t*)new_block + sizeof(heap_block));
+        new_block->length = best_fit->length - n - sizeof(heap_block);
+        new_block->is_free = true;
+        new_block->next = best_fit->next;
+        if (best_fit->next) new_block->next->prev = new_block;
+        new_block->prev = best_fit;
+        best_fit->next = new_block;
         best_fit->length = n;
     }
 

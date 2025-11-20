@@ -195,7 +195,6 @@ static unreal_fd* resolve_path(const char* path, bool create_missing, bool final
 
 void initialise() {
     root_fd = alloc_fd("/", true, nullptr);
-    Log::infof("FS: root initialised");
 }
 
 int fd_error(int fd) {
@@ -351,6 +350,7 @@ int opendir(const char* path, void* outbuf) {
     return (f && f->is_dir) ? f->fd_id : -1;
 }
 
+
 int closedir(int fd) { return 0; }
 
 int stat(int fd, void* outbuf, size_t bufsize) {
@@ -385,6 +385,21 @@ void list_dir(int dir_fd, int indent) {
         if (child->is_dir)
             list_dir(child->fd_id, indent + 1);
     }
+}
+
+void mount_dir(char* filename, char* path, char* path_prefix, char* thisdir, char* parentdir, void* database, size_t filelen) {
+    if (path[0] == '.') path++;
+    if (path[0] == '/') path++;
+
+    char* full_path = u_strcat(path_prefix, path);
+    if (!full_path) return;
+
+    int dfd = mkdir(full_path);
+    if (!(dfd >= 0)) Log::errf("Failed to open dir");
+
+    printf("MOUNT: Mounted directory %s to path %s...\n", filename, full_path);
+
+    mem::heap::free(full_path);
 }
 
 void mount_file(char* filename, char* path, char* path_prefix, char* thisdir, char* parentdir, void* database, size_t filelen) {
@@ -459,7 +474,11 @@ void load_ustar_archive(void* base, size_t size) {
 
         char* path_prefix = "/initrd/";
 
-        mount_file(header->name, fullpath, path_prefix, ".", "..", ptr + 512, filesize);
+        if (header->name[u_strlen(header->name)] == '/' || header->name[u_strlen(header->name)-1] == '/') {
+            mount_dir(header->name, fullpath, path_prefix, ".", "..", ptr + 512, filesize);
+        } else {
+            mount_file(header->name, fullpath, path_prefix, ".", "..", ptr + 512, filesize);
+        }
 
         size_t total_size = 512 + ((filesize + 511) & ~511);
         ptr += total_size;

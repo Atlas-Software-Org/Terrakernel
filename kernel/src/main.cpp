@@ -10,6 +10,7 @@
 #include <uacpi/event.h>
 #include <uacpi/tables.h>
 #include <unreal_fs/unrealfs.hpp>
+#include <process/sched.hpp>
 
 #define UACPI_ERROR(name, isinit) \
 if (uacpi_unlikely_error(uacpi_result)) { \
@@ -29,6 +30,43 @@ volatile struct limine_module_request module_request = {
     .response = nullptr, // shut up gcc
 };
 
+void proc0() {
+    int counter = 0;
+    printf("Started proc0\n\r");
+    while (1) {
+        printf("Proc0 running... %d\n\r", counter++);
+        scheduler::yield();
+    }
+}
+
+void proc1() {
+    int counter = 0;
+    printf("Started proc1\n\r");
+    while (1) {
+        printf("Proc1 running... %d\n\r", counter+=2);
+        scheduler::yield();
+    }
+}
+
+void proc2_child_thread() {
+    int counter = 1;
+    printf("Started proc2 child\n\r");
+    while (1) {
+        printf("Proc2 child running... %d\n\r", counter*2);
+        scheduler::yield();
+    }
+}
+
+void proc2() {
+    int counter = 1;
+    Thread* child = scheduler::spawn_thread(proc2_child_thread);
+    printf("Started proc2\n\r");
+    while (1) {
+        printf("Proc2 running... %d\n\r", counter + (2*counter));
+        scheduler::yield();
+    }
+}
+
 extern "C" void init() {
     if (module_request.response == nullptr || module_request.response->module_count < 1) {
         asm volatile ("cli;hlt");
@@ -37,6 +75,7 @@ extern "C" void init() {
     flanterm_initialise();
        
     serial::serial_enable();
+    Log::print_status("OK", "Flanterm Initialised"); // late
     Log::print_status("OK", "Serial Initialised");
     
     arch::x86_64::cpu::gdt::initialise();
@@ -55,7 +94,7 @@ extern "C" void init() {
     Log::print_status("OK", "Heap Initialised");
     
     driver::pit::initialise();
-    Log::print_status("OK", "PIT Initialised");
+    Log::print_status("OK", "PIT Initialised (FREQ=300)");
 
     /*Log::info("Disabling COM1 serial output, falling back to graphical interface");
     serial::serial_disable();
@@ -88,6 +127,14 @@ extern "C" void init() {
         module_request.response->modules[0]->address,
         module_request.response->modules[0]->size
     );
+    
+    scheduler::initialise();
+
+    Thread* proc0_thread = scheduler::spawn_thread(proc0);
+    Thread* proc1_thread = scheduler::spawn_thread(proc1);
+    Thread* proc2_thread = scheduler::spawn_thread(proc2);
+
+    scheduler::yield();
 
     while (1) {
         asm volatile("hlt");

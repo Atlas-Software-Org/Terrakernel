@@ -141,7 +141,7 @@ void set_descriptor(uint8_t vector, uint64_t isr, uint8_t flags) {
 	idt_entry_t *e = &idt.entries[vector];
 	e->isr_offset_low = (isr & 0xFFFF);
 	e->gdt_selector = 0x08;
-	e->ist = 0;
+	e->ist = 1;
 	e->flags = flags;
 	e->isr_offset_middle = (isr >> 16) & 0xFFFF;
 	e->isr_offset_high = (isr >> 32) & 0xFFFFFFFF;

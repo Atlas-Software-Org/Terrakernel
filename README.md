@@ -23,10 +23,8 @@ Terra is the operating system I'm planning to use terrakernel for.
 - [x] Write a PIT timer
 - [x] Switch to fully graphical (flanterm) messages and logs
 - [x] Port uACPI
-- [x] Parse "APIC" table
 - [x] (Other) Write a VFS and TMPFS and parse a USTAR Initrd archive
-- [ ] Scheduling
-- [ ] Multiprocessing with SMP
+- [ ] Scheduling (COOP)*
 - [ ] Switching to userspace
 - [ ] Write some basic syscalls
 - [ ] Load x86_64 ELF binaries, static and relocatable
@@ -49,6 +47,7 @@ Terra is the operating system I'm planning to use terrakernel for.
 - [ ] Port a window manager (window server) (probably Xorg)
 - [ ] Port anything else
 - [ ] End of porting software
+- [ ] End of project... or at least this version...
 
 ### Building the kernel
 Check [BUILD_INSTRUCTIONS.md](https://github.com/Atlas-Software-Org/Terrakernel/blob/master/BUILD_INSTRUCTIONS.md)

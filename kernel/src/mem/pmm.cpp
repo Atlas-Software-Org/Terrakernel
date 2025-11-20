@@ -50,14 +50,12 @@ static void prepare_bitmap(uint64_t mem) {
 	}
 
 	if (!best) {
-		Log::errf("PMM: No segment large enough for bitmap (%llu bytes)", bitmap_size);
 		return;
 	}
 
 	best->is_bitmap = true;
 	bitmap = reinterpret_cast<uint8_t*>(best->base);
 	mem::memset(bitmap, 0, bitmap_size);
-	Log::infof("PMM: Bitmap placed at %p (%llu bytes)", bitmap, bitmap_size);
 }
 
 namespace mem::pmm {
@@ -95,7 +93,6 @@ void initialise() {
 	total_addrspace = 0;
 
 	int created_segments = 0;
-	Log::infof("PMM: Detected %llu memory map entries", memmap_request.response->entry_count);
 
 	for (uint64_t i = 0; i < memmap_request.response->entry_count; i++) {
 		limine_memmap_entry* e = memmap_request.response->entries[i];
@@ -117,14 +114,11 @@ void initialise() {
 		s->remaining_bytes = seg_len;
 
 		total_mem += seg_len;
-		Log::infof("PMM: Segment #%d base=0x%llx length=%llu bytes", created_segments - 1, s->base, s->length);
 	}
 
 	prepare_bitmap(total_mem);
 	total_pages = total_mem / PAGE_SIZE;
 	free_mem = total_mem;
-
-	Log::infof("PMM: Ready with %llu pages", total_pages);
 }
 
 void* palloc(size_t npages) {
@@ -166,7 +160,6 @@ void* palloc(size_t npages) {
 					seg->remaining_bytes -= needed * PAGE_SIZE;
 					allocation_count++;
 
-					Log::infof("PMM: Allocated %llu page(s) (base=0x%llx) from segment %d (segment base=0x%llx)", npages, seg->base + start * PAGE_SIZE, segid, seg->base);
 					return reinterpret_cast<void*>(seg->base + start * PAGE_SIZE);
 				}
 			} else {
@@ -178,7 +171,6 @@ void* palloc(size_t npages) {
 	}
 
 	failed_allocation_count++;
-	Log::warnf("PMM: Allocation of %llu pages failed", npages);
 	return nullptr;
 }
 
@@ -226,7 +218,6 @@ void free(void* ptr, size_t npages) {
 			bitmap_clear(global_index + i);
 			actually_freed += PAGE_SIZE;
 		} else {
-			Log::warnf("PMM: Double free or invalid free at page index %llu", global_index + i);
 			failed_free_count++;
 		}
 	}
@@ -239,8 +230,6 @@ void free(void* ptr, size_t npages) {
 	free_mem += actually_freed;
 	seg->remaining_bytes += actually_freed;
 	free_count++;
-
-	Log::infof("PMM: Freed %llu pages from segment %d (base=0x%llx)", actually_freed / PAGE_SIZE, segid, seg->base);
 }
 
 void* reserve_heap(size_t npages) {
@@ -276,7 +265,6 @@ void* reserve_heap(size_t npages) {
 					seg->remaining_bytes -= needed * PAGE_SIZE;
 					allocation_count++;
 
-						Log::infof("PMM: Reserved %llu page(s) (base=0x%llx) from segment %d (segment base=0x%llx)", npages, seg->base + start * PAGE_SIZE, segid, seg->base);
 					return reinterpret_cast<void*>(seg->base + start * PAGE_SIZE);
 				}
 			} else {
@@ -288,7 +276,6 @@ void* reserve_heap(size_t npages) {
 	}
 
 	failed_allocation_count++;
-	Log::warnf("PMM: Reservation of %llu pages failed", npages);
 	return nullptr;
 }
 

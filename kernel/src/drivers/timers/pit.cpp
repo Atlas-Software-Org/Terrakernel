@@ -1,5 +1,6 @@
 #include <drivers/timers/pit.hpp>
 #include <drivers/serial/print.hpp>
+#include <process/sched.hpp>
 
 struct pit_interrupt {
     void (*handler)();
@@ -7,7 +8,7 @@ struct pit_interrupt {
     bool set;
 };
 
-static constexpr int PIT_FREQUENCY = 100;
+static constexpr int PIT_FREQUENCY = 300;
 static uint64_t ticks = 0;
 
 static pit_interrupt pit_interrupts[4] = {};
@@ -29,9 +30,6 @@ inline uint64_t safe_modulo(uint64_t numerator, uint64_t denominator) {
     return numerator % denominator;
 }
 
-#include <drivers/serial/print.hpp>
-#include <stdint.h>
-
 template <typename Func, typename... Args>
 inline void safe_call(Func function, Args... args) {
     if (!function) {
@@ -39,19 +37,15 @@ inline void safe_call(Func function, Args... args) {
         return;
     }
 
-    asm volatile("cli");
     function(args...);
-    asm volatile("sti");
 }
 
 __attribute__((interrupt))
-static void pit_handler(void* frame) {
-    (void)frame;
-    
+static void pit_handler(interrupt_frame* frame) {
     ticks++;
 
     for (int i = 0; i < 4; i++) {
-        break; // For now just break
+        break;
         if (!pit_interrupts[i].set) continue;
         if (safe_modulo(ticks, pit_interrupts[i].frequency_divisor) == 0) {
             safe_call(pit_interrupts[i].handler);
@@ -79,11 +73,9 @@ void initialise() {
     outb(CHx_DATA(0), static_cast<uint8_t>((divisor >> 8) & 0xFF));
 
     arch::x86_64::cpu::idt::set_descriptor(0x20, (uint64_t)pit_handler, 0x8E);
-
-    Log::infof("PIT Initialised (PIT_FREQUENCY=%d)", PIT_FREQUENCY);
 }
 
-void attach_periodic_interrupt(void (*handler)(), uint64_t frequency_divisor) {
+void attach_periodic_interrupt(void (*handler)(), uint64_t frequency_divisor, bool give_rip) {
     if (attached < 4) {
         pit_interrupts[attached++] = {handler, frequency_divisor, true};
     }
