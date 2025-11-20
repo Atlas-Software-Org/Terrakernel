@@ -4,8 +4,6 @@
 
 namespace scheduler {
 
-static Thread* queue_head = nullptr;
-static Thread* queue_tail = nullptr;
 static Thread* current = nullptr;
 static uint32_t global_id = 0;
 static uint64_t cr3 = 0;
@@ -38,13 +36,6 @@ static Thread* allocate_thread(void (*fn)(), bool is_main) {
         t->regs.rbp = t->regs.rsp;
     }
 
-    if (!queue_head) {
-        queue_head = queue_tail = t;
-    } else {
-        queue_tail->next = t;
-        queue_tail = t;
-    }
-
     return t;
 }
 
@@ -53,22 +44,30 @@ void initialise() {
     asm volatile("pushfq; pop %0" : "=r"(flags));
 
     current = allocate_thread(main_task, true);
+    current->next = current;
+
     printf("Scheduler initialized. Main thread ID=%d\n\r", current->id);
 }
 
 Thread* create(void (*fn)()) {
-    return allocate_thread(fn, false);
+    Thread* t = allocate_thread(fn, false);
+    
+    t->next = current->next;
+    current->next = t;
+
+    return t;
 }
 
 Thread* next_runnable() {
     if (!current) return nullptr;
 
-    Thread* t = current->next ? current->next : queue_head;
-    while (t->terminated) {
-        t = t->next ? t->next : queue_head;
-        if (t == current) return current->terminated ? nullptr : current;
-    }
-    return t;
+    Thread* start = current;
+    do {
+        current = current->next;
+        if (!current->terminated) return current;
+    } while (current != start);
+
+    return nullptr;
 }
 
 void yield() {
