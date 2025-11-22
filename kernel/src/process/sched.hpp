@@ -3,27 +3,49 @@
 
 #include <cstdint>
 
-struct Registers {
-    uint64_t rax, rbx, rcx, rdx, rsi, rdi;
-    uint64_t rsp, rbp, rip, rflags, cr3;
-    uint64_t r8, r9, r10, r11, r12, r13, r14, r15;
+typedef int32_t pid_t;
+
+struct Context {
+    uint64_t rip;
+    uint64_t cr3;
+    uint64_t rsi, rdi;
+    uint64_t r15, r14, r13, r12,
+             r11, r10, r9, r8,
+             rdx, rcx, rbx, rax;
+    uint64_t rbp, rsp;
 };
 
-struct Thread {
-    Registers regs;
-    uint32_t id;
-    bool terminated;
-    uint64_t* stack;
-    Thread* next;
+struct Process {
+    pid_t pid;
+    
+    void* stack_base;
+    void* heap_base;
+
+    Context ctx;
+
+    Process* next;
+
+    bool ready;
 };
 
 namespace scheduler {
 
+pid_t current_pid();
+
 void initialise();
-Thread* create(void (*fn)());
-void yield();
-void schedule();
-extern "C" void switch_thread(Registers* old_regs, Registers* new_regs);
+
+pid_t spawn(void (*entry)(), bool kstack = true, bool kheap = true, void* stack_base = nullptr, void* heap_base = nullptr);
+void exit(pid_t pid);
+pid_t current_pid();
+
+void yield(uint64_t rip);
+
+void begin();
+
+bool is_ready();
+
+extern "C" void store_context();
+extern "C" void load_context();
 
 }
 

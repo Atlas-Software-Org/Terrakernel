@@ -42,6 +42,8 @@ inline void safe_call(Func function, Args... args) {
 
 __attribute__((interrupt))
 static void pit_handler(interrupt_frame* frame) {
+    asm("cli");
+
     ticks++;
 
     for (int i = 0; i < 4; i++) {
@@ -53,6 +55,11 @@ static void pit_handler(interrupt_frame* frame) {
     }
 
     arch::x86_64::io::outb(0x20, 0x20);
+
+    if (ticks % 10 == 0 && scheduler::is_ready())
+        scheduler::yield(frame->rip);
+
+    asm("sti");
 }
 
 namespace driver::pit {

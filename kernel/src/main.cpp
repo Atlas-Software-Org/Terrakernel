@@ -31,40 +31,18 @@ volatile struct limine_module_request module_request = {
 };
 
 void proc0() {
-    int counter = 0;
-    printf("Started proc0\n\r");
-    while (1) {
-        printf("Proc0 running... %d\n\r", counter++);
-        scheduler::yield();
-    }
+    printf("[proc0] hello from proc0\n");
+    scheduler::exit(scheduler::current_pid());
 }
 
 void proc1() {
-    int counter = 0;
-    printf("Started proc1\n\r");
-    while (1) {
-        printf("Proc1 running... %d\n\r", counter+=2);
-        scheduler::yield();
-    }
-}
-
-void proc2_child_thread() {
-    int counter = 1;
-    printf("Started proc2 child\n\r");
-    while (1) {
-        printf("Proc2 child running... %d\n\r", counter*2);
-        scheduler::yield();
-    }
+    printf("[proc1] doing some work...\n");
+    scheduler::exit(scheduler::current_pid());
 }
 
 void proc2() {
-    int counter = 1;
-    scheduler::create(proc2_child_thread);
-    printf("Started proc2\n\r");
-    while (1) {
-        printf("Proc2 running... %d\n\r", counter + (2*counter));
-        scheduler::yield();
-    }
+    printf("[proc2] finishing task\n");
+    scheduler::exit(scheduler::current_pid());
 }
 
 extern "C" void init() {
@@ -99,9 +77,9 @@ extern "C" void init() {
     /*Log::info("Disabling COM1 serial output, falling back to graphical interface");
     serial::serial_disable();
     Log::print_status("OK", "Serial Disabled");*/
-    
-    asm volatile("sti");
-    
+
+    asm("sti");
+
     uacpi_status uacpi_result = uacpi_initialize(0);
     UACPI_ERROR("Initialise", 1);
     
@@ -128,13 +106,18 @@ extern "C" void init() {
         module_request.response->modules[0]->size
     );
     
+    printf("[main.cpp] scheduler::initialise(); at line 111 in kernel/src/main.cpp\n\r");
     scheduler::initialise();
 
-    scheduler::create(proc0);
-    scheduler::create(proc1);
-    scheduler::create(proc2);
+    printf("[main.cpp] scheduler::spawn(proc0); at line 115 in kernel/src/main.cpp\n\r");
+    scheduler::spawn(proc0);
+    printf("[main.cpp] scheduler::spawn(proc1); at line 117 in kernel/src/main.cpp\n\r");
+    scheduler::spawn(proc1);
+    printf("[main.cpp] scheduler::spawn(proc2); at line 119 in kernel/src/main.cpp\n\r");
+    scheduler::spawn(proc2);
 
-    scheduler::yield();
+    printf("[main.cpp] scheduler::begin(); at line 121 in kernel/src/main.cpp\n\r");
+    scheduler::begin();
 
     while (1) {
         asm volatile("hlt");
