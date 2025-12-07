@@ -1,4 +1,5 @@
 #include <panic.hpp>
+#include <cstring>
 #include <lib/Flanterm/ftctx.h>
 #include <drivers/serial/serial.hpp>
 #include <drivers/serial/printf.h>
@@ -10,7 +11,8 @@
 #include <uacpi/event.h>
 #include <uacpi/tables.h>
 #include <tmpfs/tmpfs.hpp>
-#include <cstring>
+#include <pci/pci.hpp>
+#include <drivers/blockio/ahci.hpp>
 
 #define UACPI_ERROR(name, isinit) \
 if (uacpi_unlikely_error(uacpi_result)) { \
@@ -79,12 +81,33 @@ extern "C" void init() {
     uacpi_result = uacpi_finalize_gpe_initialization();
     UACPI_ERROR("GPE", 0);
 
+    asm("cli");
+
 	tmpfs::initialise();
+    tmpfs::mkdir("/dev", 0777);
+    int stdin = tmpfs::open("/dev/stdin", O_CREAT | O_RDWR);
+    int stdout = tmpfs::open("/dev/stdout", O_CREAT | O_RDWR);
+    int stderr = tmpfs::open("/dev/stderr", O_CREAT | O_RDWR);
+    Log::print_status("OK", "TMPFS Initialised");
+
+    pci::initialise();
+    Log::print_status("OK", "Detected all PCI devices");
+
+    ahci::initialise();
+    Log::print_status("OK", "AHCI Initialised");
+
+    uint8_t buf[512];
+    ssize_t num = ahci::ahci_driver_read(0, 0, 1, buf);
+    for (int i = 0; i < sizeof(buf); i++) {
+        printf("%c", buf[i]);
+    }
 
 	arch::x86_64::syscall::initialise();
+    Log::print_status("OK", "Syscalls Initialised");
 
+	asm("sti");
     while (1) {
-        asm volatile("hlt");
+    	asm volatile("hlt");
     }
     
     __builtin_unreachable();

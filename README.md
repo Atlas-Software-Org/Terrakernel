@@ -25,8 +25,8 @@ Terra is the operating system I'm planning to use terrakernel for.
 - [x] Port uACPI
 - [x] (Other) Write a VFS and TMPFS and parse a USTAR Initrd archive
 - [ ] Scheduling
-- [ ] Switching to userspace
-- [ ] Write some basic syscalls (int 0x80 probably)
+- [x] Switching to userspace
+- [ ] Write some basic syscalls
 - [ ] Load x86_64 ELF binaries, static and relocatable (copy from old version of TK)
 - [ ] End of x86_64 stuff (almost)
 
