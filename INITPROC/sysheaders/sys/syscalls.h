@@ -115,7 +115,6 @@ static inline long syscall6(long n, long a1, long a2, long a3, long a4, long a5,
     return ret;
 }
 
-// Example: wrapper functions
 static inline int sys_open(const char* path, int flags, mode_t mode) {
     return syscall3(num_sys_open, (long)path, flags, mode);
 }
