@@ -1,7 +1,7 @@
 #include "tmpfs.hpp"
 #include <cstring>
 #include <mem/mem.hpp>
-#include <drivers/serial/print.hpp>
+#include <cstdio>
 
 namespace tmpfs {
 

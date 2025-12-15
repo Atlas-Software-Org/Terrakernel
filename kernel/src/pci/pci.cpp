@@ -1,7 +1,7 @@
 #include "pci.hpp"
 #include <mem/mem.hpp>
 #include <arch/arch.hpp>
-#include <drivers/serial/print.hpp>
+#include <cstdio>
 
 pci_device* pci_dev_head = nullptr;
 pci_device* pci_dev_tail = nullptr;

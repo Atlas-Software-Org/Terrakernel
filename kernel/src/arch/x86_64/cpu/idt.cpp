@@ -1,6 +1,6 @@
 #include <arch/arch.hpp>
 #include <arch/x86_64/cpu/idt.hpp>
-#include <drivers/serial/print.hpp>
+#include <cstdio>
 
 bool idt_set_vectors[256] = {false};
 

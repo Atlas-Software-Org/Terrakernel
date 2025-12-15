@@ -1,6 +1,6 @@
 #include <mem/mem.hpp>
 #include <mem/heap.hpp>
-#include <drivers/serial/print.hpp>
+#include <cstdio>
 
 void* heap_base = nullptr;
 size_t heap_size = 0;

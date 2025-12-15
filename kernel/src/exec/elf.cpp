@@ -4,7 +4,7 @@
 #include <mem/vmm.hpp>
 #include <mem/pmm.hpp>
 #include <arch/arch.hpp>
-#include <drivers/serial/print.hpp>
+#include <cstdio>
 
 constexpr size_t PAGE_SIZE = 0x1000;
 
@@ -90,6 +90,8 @@ static void apply_relocations(void* load_base, Elf64_Phdr* phdrs, int phnum) {
         if (type == R_X86_64_RELATIVE) {
             *reinterpret_cast<uint64_t*>(load_base + r->r_offset) = (uint64_t)load_base + r->r_addend;
         }
+
+        Log::infof("Applying relocation: offset=0x%lx, type=%llu, addend=0x%lx", r->r_offset, type, r->r_addend);
     }
 }
 
@@ -122,10 +124,13 @@ void run_elf(void* base, size_t filesz) {
         for (size_t p = 0; p < map_pages; p++) {
             void* page_addr = map_start + p * PAGE_SIZE;
             mem::vmm::munmap(reinterpret_cast<void*>(page_addr), 1); // ensure it is unmapped
+            void* page = mem::vmm::valloc(1);
+            mem::vmm::mmap(page, page, 1, PAGE_PRESENT | PAGE_RW | PAGE_USER);
             uint64_t ret = mem::vmm::mmap(reinterpret_cast<void*>(page_addr),
-                           reinterpret_cast<void*>(page_addr),
+                           page,
                            1,
                            PAGE_PRESENT | PAGE_RW | PAGE_USER);
+            mem::vmm::mmap((void*)0x400000, (void*)0x400000, 1, PAGE_PRESENT | PAGE_RW | PAGE_USER);
         }
 
         mem::memcpy(reinterpret_cast<void*>(seg_base),

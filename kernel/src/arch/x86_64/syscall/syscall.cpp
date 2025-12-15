@@ -1,5 +1,5 @@
 #include "syscall.hpp"
-#include <drivers/serial/print.hpp>
+#include <cstdio>
 #include "syscalls/handlers.hpp"
 
 syscall_entry syscalls[512];
@@ -38,7 +38,7 @@ extern "C" uint64_t syscall_handler(uint64_t rax, uint64_t rdi, uint64_t rsi,
 						 uint64_t rdx, uint64_t r10, uint64_t r8, uint64_t r9) {
 	for (int i = 0; i < num_syscalls; i++) {
 		if (syscalls[i].num == rax) {
-			printf("RAX= 0x%llX\n\rRDI= 0x%llX\n\rRSI= 0x%llX\n\rRDX= 0x%llX\n\rR10= 0x%llX\n\r",
+			printf("SYSCALL!\n\rRAX= 0x%llX\n\rRDI= 0x%llX\n\rRSI= 0x%llX\n\rRDX= 0x%llX\n\rR10= 0x%llX\n\r",
 				rdi, rsi, rdx, r10
 			);
 			uint64_t (*handler)(uint64_t,uint64_t,uint64_t,uint64_t) = (uint64_t(*)(uint64_t,uint64_t,uint64_t,uint64_t))syscalls[i].func;

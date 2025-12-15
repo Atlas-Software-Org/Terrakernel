@@ -1,0 +1,8 @@
+#ifndef CSTDIO
+#define CSTDIO 1
+
+#include <drivers/serial/print.hpp>
+#include <drivers/serial/printf.h>
+#include <drivers/serial/serial.hpp>
+
+#endif

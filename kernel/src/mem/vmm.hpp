@@ -7,6 +7,11 @@
 
 namespace mem::vmm {
 
+void* create_pagetable();
+void free_pagetable(void* pml4_ptr);
+void switch_pagetable(uint64_t ptr);
+void reset_pagetable();
+
 uint64_t pa_to_va(uint64_t pa);
 uint64_t va_to_pa(uint64_t va);
 		

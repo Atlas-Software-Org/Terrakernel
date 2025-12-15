@@ -1,5 +1,5 @@
 #include <mem/mem.hpp>
-#include <drivers/serial/print.hpp>
+#include <cstdio>
 
 uint64_t original_PML4 = 0;
 uint64_t default_PML4 = 0;
@@ -10,6 +10,35 @@ uint64_t current_PML4 = 0;
 #define PAGE_USER    0x4
 
 namespace mem::vmm {
+
+void* create_pagetable() {
+    void* page = mem::pmm::palloc(1);
+    if (!page) return nullptr;
+
+    mmap(page, page, 1, PAGE_PRESENT | PAGE_RW);
+
+    mem::memset(page, 0, 0x1000);
+
+    constexpr int HHDM_START = 256;
+    constexpr int PML4_ENTRIES = 512;
+
+    uint64_t* new_pml4 = reinterpret_cast<uint64_t*>(page);
+    uint64_t* orig_pml4 = reinterpret_cast<uint64_t*>(original_PML4);
+
+    for (int i = HHDM_START; i < PML4_ENTRIES; i++) {
+        new_pml4[i] = orig_pml4[i];
+    }
+
+    return page;
+}
+
+void free_pagetable(void* pml4_ptr) {
+    if (current_PML4 == (uint64_t)pml4_ptr) {
+        reset_pagetable();
+    }
+
+    mem::pmm::free(pml4_ptr, 1);
+}
 
 uint64_t pa_to_va(uint64_t pa) {
     if (pa > 0xFFFF800000000000) return pa;
@@ -114,6 +143,8 @@ uint64_t mmap(void* paddr, void* vaddr, size_t npages, uint64_t attributes) {
         pt[pt_index] = (pa & ~0xFFF) | leaf_flags;
 
         first_page = pt[pt_index];
+
+        Log::infof("Page table entry [0x%016llX]: 0x%016llX", va, pt[pt_index]);
     }
 
     return first_page;

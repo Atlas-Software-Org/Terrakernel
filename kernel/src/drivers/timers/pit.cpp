@@ -1,6 +1,5 @@
 #include <drivers/timers/pit.hpp>
-#include <drivers/serial/print.hpp>
-#include <drivers/video/std_fb.hpp>
+#include <cstdio>
 
 struct pit_interrupt {
     void (*handler)();
@@ -51,7 +50,7 @@ static void pit_handler(interrupt_frame* frame) {
             safe_call(pit_interrupts[i].handler);
         }
     }
-
+    
     arch::x86_64::io::outb(0x20, 0x20);
 }
 

@@ -1,6 +1,6 @@
 #include "ahci.hpp"
 #include <pci/pci.hpp>
-#include <drivers/serial/print.hpp>
+#include <cstdio>
 #include <mem/mem.hpp>
 #include <arch/arch.hpp>
 

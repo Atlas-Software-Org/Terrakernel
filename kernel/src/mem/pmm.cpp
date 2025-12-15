@@ -1,5 +1,5 @@
 #include <mem/mem.hpp>
-#include <drivers/serial/print.hpp>
+#include <cstdio>
 #include <limine.h>
 
 __attribute__((section(".limine_requests")))

@@ -1,7 +1,7 @@
 #include <uacpi/kernel_api.h>
 #include <limine.h>
 #include <mem/mem.hpp>
-#include <drivers/serial/print.hpp>
+#include <cstdio>
 #include <cstdarg>
 #include <arch/arch.hpp>
 #include <drivers/timers/pit.hpp>
