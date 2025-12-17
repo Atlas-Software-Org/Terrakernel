@@ -111,7 +111,25 @@ extern "C" void init() {
     sched::initialise();
     Log::printf_status("OK", "Scheduler Initialised");
 
-    sched::omar__sched_test();
+    sched::createTask([]() {
+        for (int i = 0; i < 1000; i++) {
+            driver::pit::sleep_ms(1000);
+            Log::infof("Hello from task %d!", i);
+            sched::yield();
+        }
+        for (;;) sched::yield();
+    });
+
+    sched::createTask([]() {
+        for (int i = 0; i < 2000; i++) {
+            driver::pit::sleep_ms(500);
+            Log::infof("Hello from task %d!", i);
+            sched::yield();
+        }
+        for (;;) sched::yield();
+    });
+
+    sched::yield();
 
     while (1) {
         asm volatile("hlt");

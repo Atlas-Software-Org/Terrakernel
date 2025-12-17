@@ -1,20 +1,25 @@
 #ifndef SCHED_HPP
-#define SCHED_HPP
+#define SCHED_HPP 1
 
 #include <cstdint>
 
+
+struct Registers {
+    uint64_t rax, rbx, rcx, rdx, rsi, rdi, rsp, rbp, rip, rflags, cr3;
+    uint64_t r8, r9, r10, r11, r12, r13, r14, r15;
+};
+
 struct Task {
-    uint64_t rsp;
-    Task* next;
-    char* name;
+    Registers regs;
+    Task *next;
 };
 
 namespace sched {
-void initialise();
-Task* create_task(void (*func)(), char* name = nullptr);
-void yield();
 
-void omar__sched_test();
+void initialise();
+Task* createTask(void (*entry)());
+
+void yield();
 
 }
 

@@ -32,6 +32,9 @@ namespace mem {
 		void free(void* ptr, size_t npages);
 		uint64_t mmap(void* paddr, void* vaddr, size_t npages, uint64_t attributes);
 		void munmap(void* vaddr, size_t npages);
+
+		void* create_pagetable();
+		void free_pagetable(void* pml4_ptr);
 	}
 
 	namespace heap {

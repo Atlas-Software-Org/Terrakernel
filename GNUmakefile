@@ -8,8 +8,8 @@ override IMAGE_NAME := terra-$(ARCH)
 
 HOST_CC := cc
 HOST_CFLAGS := -g -O0 -pipe
-HOST_CPPFLAGS :=
-HOST_LDFLAGS :=
+HOST_CPPFLAGS := -g -O0 -pipe
+HOST_LDFLAGS := -g
 HOST_LIBS :=
 
 .PHONY: all-iso
