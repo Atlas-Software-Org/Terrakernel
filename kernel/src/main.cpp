@@ -15,6 +15,7 @@
 #include <drivers/blockio/ahci.hpp>
 #include <exec/elf.hpp>
 #include <sched/sched.hpp>
+#include <drivers/input/ps2k/ps2k.hpp>
 
 #define UACPI_ERROR(name, isinit) \
 if (uacpi_unlikely_error(uacpi_result)) { \
@@ -108,28 +109,11 @@ extern "C" void init() {
 	arch::x86_64::syscall::initialise();
     Log::printf_status("OK", "Syscalls Initialised");
 
+	driver::input::ps2k::initialise();
+	Log::printf_status("OK", "PS2K Initialised");
+
     sched::initialise();
     Log::printf_status("OK", "Scheduler Initialised");
-
-    sched::createTask([]() {
-        for (int i = 0; i < 1000; i++) {
-            driver::pit::sleep_ms(1000);
-            Log::infof("Hello from task %d!", i);
-            sched::yield();
-        }
-        for (;;) sched::yield();
-    });
-
-    sched::createTask([]() {
-        for (int i = 0; i < 2000; i++) {
-            driver::pit::sleep_ms(500);
-            Log::infof("Hello from task %d!", i);
-            sched::yield();
-        }
-        for (;;) sched::yield();
-    });
-
-    sched::yield();
 
     while (1) {
         asm volatile("hlt");

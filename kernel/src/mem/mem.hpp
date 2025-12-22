@@ -35,6 +35,7 @@ namespace mem {
 
 		void* create_pagetable();
 		void free_pagetable(void* pml4_ptr);
+		uint64_t fetch_default_pagetable();
 	}
 
 	namespace heap {

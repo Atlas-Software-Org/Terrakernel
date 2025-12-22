@@ -40,6 +40,10 @@ void free_pagetable(void* pml4_ptr) {
     mem::pmm::free(pml4_ptr, 1);
 }
 
+uint64_t fetch_default_pagetable() {
+    return default_PML4;
+}
+
 uint64_t pa_to_va(uint64_t pa) {
     if (pa > 0xFFFF800000000000) return pa;
     return pa + 0xFFFF800000000000;

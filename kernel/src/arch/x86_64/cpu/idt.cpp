@@ -1,6 +1,7 @@
 #include <arch/arch.hpp>
 #include <arch/x86_64/cpu/idt.hpp>
 #include <cstdio>
+#include <mem/mem.hpp>
 
 bool idt_set_vectors[256] = {false};
 
@@ -21,6 +22,65 @@ bool is_solvable(int excvec) {
 			return true;
 		default:
 			return false;
+	}
+}
+
+void fix_exceptions(
+	int excvec,
+	uint64_t error_code,
+	uint64_t rip,
+	uint64_t cr2,
+	uint64_t cr3
+) {
+	switch (excvec) {
+		case 0: {
+			Log::infof("Divide By Zero Exception handled");
+			break;
+		}
+		case 3: {
+			Log::infof("Breakpoint Exception handled");
+			printf("Breakpoint at RIP: 0x%llX\n", rip);
+			while (1) {
+				if (arch::x86_64::io::inb(0x3F8) & 1) break; // Wait for input to continue
+			}
+			break;
+		}
+		case 14: {
+			Log::infof("Page Fault Exception handled");
+			printf("Page Fault at CR2: 0x%llX\n", cr2);
+			printf("Error Code: %d\n", error_code);
+
+			if (cr2 & ~0xFFF == 0) {
+				Log::errf("Null pointer dereference detected");
+				asm volatile ("cli;hlt;");
+			}
+
+			if (cr2 < 0x00007FFFFFFFFFFF) {
+				Log::errf("Invalid user space address access detected");
+				asm volatile ("cli;hlt;");
+			}
+
+			if (error_code & 0x1) {
+				Log::infof("Page fault caused by protection violation");
+				asm volatile ("cli;hlt;");
+			} else {
+				Log::infof("Page fault caused by non-present page");
+				mem::vmm::mmap(
+					(void*)(cr2 & ~0xFFF),
+					(void*)(cr2 & ~0xFFF),
+					1,
+					PAGE_PRESENT |
+					PAGE_RW |
+					PAGE_USER
+				);
+				Log::infof("Mapped page for address 0x%llX", cr2);
+			}
+
+			break;
+		}
+		default:
+			Log::errf("No handler for exception vector %d", excvec);
+			break;
 	}
 }
 
@@ -49,7 +109,13 @@ extern "C" void exception_handler(
 	if (!is_solvable(exception_vector)) asm volatile ("cli;hlt;");
 
 	Log::infof("Exception is solvable");
-	asm volatile ("cli;hlt;");
+	fix_exceptions(
+		exception_vector,
+		error_code,
+		rip,
+		cr2,
+		cr3
+	);
 }
 
 #define PIC1		0x20
@@ -121,20 +187,12 @@ static void irq_set_mask(uint8_t irq) {
 	arch::x86_64::io::outb(port, value);
 }
 
-__attribute__((interrupt))
-void test_usermode(int* frame) {
-	printf("USERMODE WORKS!!!\n\r");
-	while (1) asm volatile ("cli;hlt");
-}
-
 void initialise() {
 	for (int i = 0; i < 0x1F; i++) {
 		idt_set_vectors[i] = true;
 		set_descriptor(i, exception_stub_table[i], 0x8E);
 	}
 
-	set_descriptor(0x80, (uint64_t)test_usermode, 0xEE);
-	
 	idtr.limit = sizeof(idt) - 1;
 	idtr.base = (uint64_t)&idt;
 	
