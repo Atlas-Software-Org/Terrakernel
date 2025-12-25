@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <arch/arch.hpp>
 
-namespace driver::pit {
+namespace drivers::timers::pit {
     void initialise();
     void sleep_ms(uint64_t ms);
     uint64_t ns_elapsed_time();

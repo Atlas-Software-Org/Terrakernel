@@ -27,9 +27,9 @@
 // #undef PS2K_CFG_HANDLE_BACKSPACE_INDEPENDENTLY
 
 /*
-	Configure whether the (ps2k) keyboard driver runs flush() after read ops
+	Configure whether the (ps2k) keyboard driver echoes back text to the terminal
 */
-#define PS2K_CFG_HANDLE_FLUSH
-// #undef PS2K_CFG_HANDLE_FLUSH
+#define PS2K_CFG_ECHO
+// #undef PS2K_CFG_ECHO
 
 #endif

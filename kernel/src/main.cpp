@@ -16,6 +16,7 @@
 #include <exec/elf.hpp>
 #include <sched/sched.hpp>
 #include <drivers/input/ps2k/ps2k.hpp>
+#include <drivers/input/ps2m/ps2m.hpp>
 
 #define UACPI_ERROR(name, isinit) \
 if (uacpi_unlikely_error(uacpi_result)) { \
@@ -58,12 +59,12 @@ extern "C" void init() {
     mem::vmm::initialise();
     Log::printf_status("OK", "VMM Initialised");
 
-	mem::vmm::print_mem();
+	//mem::vmm::print_mem();
 
     mem::heap::initialise();
     Log::printf_status("OK", "Heap Initialised");
     
-    driver::pit::initialise();
+    //drivers::timers::pit::initialise();
     Log::printf_status("OK", "PIT Initialised (FREQ=300)");
 
     Log::info("Disabling COM1 serial output, falling back to graphical interface");
@@ -74,10 +75,12 @@ extern "C" void init() {
     serial::serial_putc('\033');
     serial::serial_putc('[');
     serial::serial_putc('H');
-    serial::serial_disable();
+    //serial::serial_disable();
     Log::printf_status("OK", "Serial Disabled");
 
     asm("sti");
+
+/*
 
     uacpi_status uacpi_result = uacpi_initialize(0);
     UACPI_ERROR("Initialise", 1);
@@ -90,6 +93,8 @@ extern "C" void init() {
 
     uacpi_result = uacpi_finalize_gpe_initialization();
     UACPI_ERROR("GPE", 0);
+
+*/
 
 	tmpfs::initialise();
     tmpfs::mkdir("/dev", 0777);
@@ -109,19 +114,25 @@ extern "C" void init() {
 	arch::x86_64::syscall::initialise();
     Log::printf_status("OK", "Syscalls Initialised");
 
-	driver::input::ps2k::initialise();
+	arch::x86_64::cpu::idt::irq_set_mask(0);
+	arch::x86_64::cpu::idt::clear_descriptor(0x20);
+
+	drivers::input::ps2k::initialise();
 	Log::printf_status("OK", "PS2K Initialised");
+
+	drivers::input::ps2m::initialise();
+	Log::printf_status("OK", "PS2M Initialised");
 
     sched::initialise();
     Log::printf_status("OK", "Scheduler Initialised");
 
-	char* buf = (char*)mem::heap::malloc(128);
+    char buf[4096];
     while (1) {
-		int read = (int)driver::input::ps2k::read(128, buf, true);
-		printf("Read %d characters: %s\n\r", read, buf);
+		printf("> ");
+		size_t read = drivers::input::ps2k::readln(128, buf);
+		printf("Read %zu characters:\n\r\t\"%s\"\n\r", read, buf);
         asm volatile("hlt");
     }
-	mem::heap::free(buf);
     
     __builtin_unreachable();
 }

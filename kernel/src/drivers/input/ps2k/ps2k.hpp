@@ -4,15 +4,12 @@
 #include <cstdint>
 #include <cstddef>
 
-#include "ps2k.hpp"
-#include <panic.hpp>
-#include <arch/arch.hpp>
-#include <mem/mem.hpp>
-
-namespace driver::input::ps2k {
+namespace drivers::input::ps2k {
 
 void initialise();
-size_t read(size_t n, void* out, bool canonical);
+
+int readln(size_t n, char* out);
+int read(int n, char* out);
 
 }
 

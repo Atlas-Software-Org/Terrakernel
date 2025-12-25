@@ -54,7 +54,7 @@ static void pit_handler(interrupt_frame* frame) {
     arch::x86_64::io::outb(0x20, 0x20);
 }
 
-namespace driver::pit {
+namespace drivers::timers::pit {
 
 void initialise() {
     using namespace arch::x86_64::io;

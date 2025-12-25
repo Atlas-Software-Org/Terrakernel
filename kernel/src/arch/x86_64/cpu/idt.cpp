@@ -171,7 +171,7 @@ static void pic_remap(int offset1, int offset2) {
 	arch::x86_64::io::outb(PIC2_DATA, 0xff);
 }
 
-static void irq_clear_mask(uint8_t irq) {
+void irq_clear_mask(uint8_t irq) {
 	uint16_t port;
 	if (irq < 8) port = PIC1_DATA;
 	else { port = PIC2_DATA; irq -= 8; }
@@ -179,7 +179,7 @@ static void irq_clear_mask(uint8_t irq) {
 	arch::x86_64::io::outb(port, value);
 }
 
-static void irq_set_mask(uint8_t irq) {
+void irq_set_mask(uint8_t irq) {
 	uint16_t port;
 	if (irq < 8) port = PIC1_DATA;
 	else { port = PIC2_DATA; irq -= 8; }
@@ -187,9 +187,20 @@ static void irq_set_mask(uint8_t irq) {
 	arch::x86_64::io::outb(port, value);
 }
 
+__attribute__((interrupt))
+void dummy_handler(void*) {
+	arch::x86_64::io::inb(0x60); // consume ps2 buffer cuz we all hate you ps2 :>
+	send_eoi(0);
+	send_eoi(15);
+}
+
 void initialise() {
+	for (int i = 0; i < 0xFF; i++) {
+		set_descriptor(i, (uint64_t)dummy_handler, 0x8E);
+		if (0x20 <= i && i < 0x2F) irq_set_mask(i);
+	}
+
 	for (int i = 0; i < 0x1F; i++) {
-		idt_set_vectors[i] = true;
 		set_descriptor(i, exception_stub_table[i], 0x8E);
 	}
 
@@ -222,13 +233,13 @@ void set_descriptor(uint8_t vector, uint64_t isr, uint8_t flags) {
 }
 
 void clear_descriptor(uint8_t vector) {
-	set_descriptor(vector, 0, 0);
-	idt_set_vectors[vector] = false;
-
 	if (0x20 <= vector && vector < 0x30) {
 		if (vector < 0x28) irq_set_mask(vector - 0x20);
 		else irq_set_mask(vector - 0x28 + 8);
 	}
+
+	idt_set_vectors[vector] = false;
+	set_descriptor(vector, 0, 0);
 }
 
 void send_eoi(uint8_t irq) {

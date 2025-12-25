@@ -302,17 +302,17 @@ void uacpi_kernel_free(void* mem, uacpi_size size_hint) {
 #endif
 
 uacpi_u64 uacpi_kernel_get_nanoseconds_since_boot(void) {
-    uint64_t ns = driver::pit::ns_elapsed_time();
+    uint64_t ns = drivers::timers::pit::ns_elapsed_time();
     return ns;
 }
 
 void uacpi_kernel_stall(uacpi_u8 usec) {
     if (usec == 0) return;
-    driver::pit::sleep_ms(usec / 1000);
+    drivers::timers::pit::sleep_ms(usec / 1000);
 }
 
 void uacpi_kernel_sleep(uacpi_u64 msec) {
-    driver::pit::sleep_ms(msec);
+    drivers::timers::pit::sleep_ms(msec);
 }
 
 struct mutex {
@@ -352,7 +352,7 @@ uacpi_thread_id uacpi_kernel_get_thread_id(void) {
 }
 
 uacpi_status uacpi_kernel_acquire_mutex(uacpi_handle handle, uacpi_u16 timeout) {
-    uint64_t current_nsec = driver::pit::ns_elapsed_time();
+    uint64_t current_nsec = drivers::timers::pit::ns_elapsed_time();
     uint64_t target_nsec = current_nsec + (timeout * 1000);
     bool op_successful = false;
     if (timeout == 0x0000) {
@@ -362,7 +362,7 @@ uacpi_status uacpi_kernel_acquire_mutex(uacpi_handle handle, uacpi_u16 timeout) 
     } else if (timeout == 0xFFFF) {
         target_nsec = (uint64_t)-1;
     }
-    while (driver::pit::ns_elapsed_time() < target_nsec) {
+    while (drivers::timers::pit::ns_elapsed_time() < target_nsec) {
         mutex* e = (mutex*)handle;
         if (e->locked == true) continue;
         else {
@@ -382,7 +382,7 @@ void uacpi_kernel_release_mutex(uacpi_handle handle) {
 }
 
 uacpi_bool uacpi_kernel_wait_for_event(uacpi_handle handle, uacpi_u16 timeout) {
-    uint64_t current_nsec = driver::pit::ns_elapsed_time();
+    uint64_t current_nsec = drivers::timers::pit::ns_elapsed_time();
     uint64_t target_nsec = current_nsec + (timeout * 1000);
     bool op_successful = false;
     if (timeout == 0x0000) {
@@ -392,7 +392,7 @@ uacpi_bool uacpi_kernel_wait_for_event(uacpi_handle handle, uacpi_u16 timeout) {
     } else if (timeout == 0xFFFF) {
         target_nsec = (uint64_t)-1;
     }
-    while (driver::pit::ns_elapsed_time() < target_nsec) {
+    while (drivers::timers::pit::ns_elapsed_time() < target_nsec) {
         event* e = (event*)handle;
         if (e->signaled == false) continue;
         else {

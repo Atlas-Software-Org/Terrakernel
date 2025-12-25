@@ -31,6 +31,9 @@ void initialise();
 void set_descriptor(uint8_t vector, uint64_t isr, uint8_t flags);
 void clear_descriptor(uint8_t vector);
 
+void irq_clear_mask(uint8_t irq);
+void irq_set_mask(uint8_t irq);
+
 void send_eoi(uint8_t irq);
 
 }
