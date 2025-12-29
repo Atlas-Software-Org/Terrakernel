@@ -24,18 +24,18 @@ Terra is the operating system I'm planning to use terrakernel for.
 - [x] Switch to fully graphical (flanterm) messages and logs
 - [x] Port uACPI
 - [x] (Other) Write a VFS and TMPFS and parse a USTAR Initrd archive
-- [ ] Scheduling (delayed)
+- [ ] Scheduling and multithreading (delayed)
 - [x] Switching to userspace
-- [x] Write some basic syscalls
+- [ ] Write some basic syscalls
 - [ ] Load x86_64 ELF binaries, static and relocatable (copy from old version of TK) (delayed)
 - [ ] End of x86_64 stuff (almost) (delayed)
 
 ### Other
 - [x] Write a VFS and TMPFS and parse a USTAR Initrd archive
 - [x] Add support for /dev/XYZ files (use O_BUILTIN_DEVICE_FILE in kernel, also requires an additional parameter which is devpath, the path to the device directory, usually for disks, e.g., initrd creates two nodes, /dev/initrd (initrd disk image) and /initrd the directory itself)
-- [x] Write a PCI driver
-- [x] Write a PS2 keyboard driver*
-- [x] Write a PS2 mouse driver*
+- [x] Write a PCI driver (PCIe as well)
+- [x] Write a PS2 keyboard driver
+- [ ] Line discipline
 - [ ] Try to write an XHCI driver for USB device support
 - [ ] Write some disk drivers, probably AHCI only for now*
 - [ ] Some filesystem drivers, probably FAT32 and maybe, maybe, maybe EXT3 or EXT4
@@ -55,20 +55,20 @@ Check [BUILD_INSTRUCTIONS.md](https://github.com/Atlas-Software-Org/Terrakernel/
 ### How many LoC?
 
 ```x86asm
-     131 text files.
-     129 unique files.
+     135 text files.
+     133 unique files.
        2 files ignored.
 
-github.com/AlDanial/cloc v 1.98  T=0.58 s (223.5 files/s, 71948.1 lines/s)
+github.com/AlDanial/cloc v 1.98  T=0.40 s (334.3 files/s, 106347.8 lines/s)
 -------------------------------------------------------------------------------
 Language                     files          blank        comment           code
 -------------------------------------------------------------------------------
-C                               23           4462           1207          21165
-C/C++ Header                    77           1437           2055           6871
-C++                             23            770             13           3270
+C                               23           4471           1207          21198
+C/C++ Header                    81           1471           2061           7353
+C++                             23            797              2           3473
 Assembly                         5             26              8            216
 CMake                            1              0              0             21
 -------------------------------------------------------------------------------
-SUM:                           129           6695           3283          31543 (31423 old)
+SUM:                           133           6765           3278          32261 (31872 old)
 -------------------------------------------------------------------------------
 ```

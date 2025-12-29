@@ -98,11 +98,9 @@ static node_struct* create_at_path_internal(node_struct* base, const char* path,
 
         node_struct* child = curr->first_child;
         while (child && strcmp(child->name, token) != 0) {
-            printf("Checking child (for create): %s\n\r", child->name);
             child = child->next_sibling;
         }
         if (child) {
-            printf("Last: Checking child (for create): %s\n\r", child->name);
         }
 
         if (!child) {
@@ -139,8 +137,6 @@ static node_struct* create_at_path_internal(node_struct* base, const char* path,
         curr = child;
         token = next_token;
     }
-
-    print_tree();
 
     return curr;
 }
@@ -684,7 +680,6 @@ void load_initrd(void* base, size_t size) {
             }
 
             int fd = open(clean_path, O_CREAT | O_WRONLY | O_TRUNC, 0644);
-            Log::infof("Created file at path %s, fd = %d", clean_path, fd);
             printf("\tNode at %p\n\r", resolve_path(clean_path));
             if (fd >= 0 && file_size > 0) {
                 write(fd, ptr + TAR_BLOCK_SIZE, file_size);

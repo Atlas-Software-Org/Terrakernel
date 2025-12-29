@@ -15,7 +15,6 @@ void add_syscall(int num, uint64_t* handler) {
 static inline uint64_t rdmsr(uint32_t msr) {
     uint32_t lo, hi;
     asm volatile ("rdmsr" : "=a"(lo), "=d"(hi) : "c"(msr) : "memory");
-    printf("Read from MSR 0x%lX the value %llX/(lo)%llX/(hi)%llX\n\r", (((uint64_t)hi << 32) | lo), lo, hi);
     return ((uint64_t)hi << 32) | lo;
 }
 
@@ -23,7 +22,6 @@ static inline void wrmsr(uint32_t msr, uint64_t value) {
     uint32_t lo = value & 0xFFFFFFFF;
     uint32_t hi = value >> 32;
     asm volatile("wrmsr" : : "c"(msr), "a"(lo), "d"(hi) : "memory");
-    printf("Wrote to MSR 0x%lX the value 0x%llX\n\r", msr, value);
 }
 
 #define IA32_EFER 0xC0000080

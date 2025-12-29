@@ -3,13 +3,20 @@
 
 #include <cstdint>
 #include <cstddef>
+#include "ps2k_key_event.hpp"
+
+typedef void (*event_callback_fn)(const key_event& ev, void* userdata);
 
 namespace drivers::input::ps2k {
 
 void initialise();
 
-int readln(size_t n, char* out);
-int read(int n, char* out);
+bool read(key_event& ev);
+size_t read_events(key_event* events, size_t max_events);
+size_t available_events();
+void flush_events();
+void set_event_callback(event_callback_fn callback, void* userdata);
+void clear_event_callback();
 
 }
 

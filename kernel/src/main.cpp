@@ -16,7 +16,8 @@
 #include <exec/elf.hpp>
 #include <sched/sched.hpp>
 #include <drivers/input/ps2k/ps2k.hpp>
-#include <drivers/input/ps2m/ps2m.hpp>
+#include <drivers/input/ps2k/ps2k_key_event.hpp>
+#include <pcie/pcie.hpp>
 
 #define UACPI_ERROR(name, isinit) \
 if (uacpi_unlikely_error(uacpi_result)) { \
@@ -35,6 +36,10 @@ volatile struct limine_module_request module_request = {
     .revision = 0,
     .response = nullptr, // shut up gcc
 };
+
+void line_discipline_test(const key_event& ev, void* userdata) {
+	printf("Got line discipline callback, ev.keycode = 0x04%X; ev.state = %s\n\r", ev.keycode, ev.state == key_state::RELEASED ? "RELEASED" : "PRESSED");
+}
 
 extern "C" void init() {
     if (module_request.response == nullptr || module_request.response->module_count < 1) {
@@ -64,7 +69,7 @@ extern "C" void init() {
     mem::heap::initialise();
     Log::printf_status("OK", "Heap Initialised");
     
-    //drivers::timers::pit::initialise();
+    drivers::timers::pit::initialise();
     Log::printf_status("OK", "PIT Initialised (FREQ=300)");
 
     Log::info("Disabling COM1 serial output, falling back to graphical interface");
@@ -79,9 +84,7 @@ extern "C" void init() {
     Log::printf_status("OK", "Serial Disabled");
 
     asm("sti");
-
-/*
-
+    
     uacpi_status uacpi_result = uacpi_initialize(0);
     UACPI_ERROR("Initialise", 1);
     
@@ -94,19 +97,19 @@ extern "C" void init() {
     uacpi_result = uacpi_finalize_gpe_initialization();
     UACPI_ERROR("GPE", 0);
 
-*/
-
 	tmpfs::initialise();
     tmpfs::mkdir("/dev", 0777);
     int stdin = tmpfs::open("/dev/stdin", O_CREAT | O_RDWR);
     int stdout = tmpfs::open("/dev/stdout", O_CREAT | O_RDWR);
     int stderr = tmpfs::open("/dev/stderr", O_CREAT | O_RDWR);
     tmpfs::load_initrd(module_request.response->modules[0]->address, module_request.response->modules[0]->size);
-    tmpfs::list_initrd();
     Log::printf_status("OK", "TMPFS Initialised");
 
-    pci::initialise();
-    Log::printf_status("OK", "Detected all PCI devices");
+    uint64_t npci = pci::initialise();
+    Log::printf_status("OK", "Detected %zu PCI devices (Normal PCI is deprecated, use PCIe)", npci);
+
+	uint64_t npcie = pcie::initialise();
+	Log::printf_status("OK", "Detected %zu PCIe devices", npcie);
 
     ahci::initialise();
     Log::printf_status("OK", "AHCI Initialised");
@@ -114,23 +117,16 @@ extern "C" void init() {
 	arch::x86_64::syscall::initialise();
     Log::printf_status("OK", "Syscalls Initialised");
 
-	arch::x86_64::cpu::idt::irq_set_mask(0);
-	arch::x86_64::cpu::idt::clear_descriptor(0x20);
-
 	drivers::input::ps2k::initialise();
 	Log::printf_status("OK", "PS2K Initialised");
 
-	drivers::input::ps2m::initialise();
-	Log::printf_status("OK", "PS2M Initialised");
+	drivers::input::ps2k::flush_events();
+	drivers::input::ps2k::set_event_callback((event_callback_fn)line_discipline_test, nullptr);
 
     sched::initialise();
     Log::printf_status("OK", "Scheduler Initialised");
 
-    char buf[4096];
     while (1) {
-		printf("> ");
-		size_t read = drivers::input::ps2k::readln(128, buf);
-		printf("Read %zu characters:\n\r\t\"%s\"\n\r", read, buf);
         asm volatile("hlt");
     }
     

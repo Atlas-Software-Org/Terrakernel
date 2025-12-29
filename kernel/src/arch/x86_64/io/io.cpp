@@ -33,7 +33,7 @@ uint32_t inl(uint16_t port) {
 }
 
 void io_wait() {
-    outb(0xFFFF, 0xFF);
+    outb(0x80, 0);
 }
 
 }

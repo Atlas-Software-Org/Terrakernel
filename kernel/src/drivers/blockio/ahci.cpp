@@ -1,5 +1,5 @@
 #include "ahci.hpp"
-#include <pci/pci.hpp>
+#include <pcie/pcie.hpp>
 #include <cstdio>
 #include <mem/mem.hpp>
 #include <arch/arch.hpp>
@@ -20,7 +20,7 @@ struct ahci_port {
     port_type type;
 };
 
-pci_device* AHCI;
+pcie_device* AHCI;
 HBAMem* ABAR;
 ahci_port* ports[32];
 
@@ -73,7 +73,7 @@ void setup_port(HBAPort* port) {
 bool ATA_MODE = false;
 
 void initialise() {
-    AHCI = pci::get_device_class_code(0x01, 0x06, true, 0x01);
+    AHCI = pcie::get_device_class_code(0x01, 0x06, true, 0x01);
     if (!AHCI) {
         Log::errf("Failed to get AHCI device... Halting");
         asm volatile ("cli;hlt;");

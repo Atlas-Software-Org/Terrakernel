@@ -1241,6 +1241,14 @@ static int unicode_to_cp437(uint64_t code_point) {
     return -1;
 }
 
+static void clear_char(struct flanterm_context *ctx) {
+    size_t x, y;
+    ctx->get_cursor_pos(ctx, &x, &y);
+    ctx->set_cursor_pos(ctx, x - 1, y);
+    ctx->raw_putchar(ctx, ' ');
+    ctx->set_cursor_pos(ctx, x - 1, y);
+}
+
 static void flanterm_putchar(struct flanterm_context *ctx, uint8_t c) {
     if (ctx->discard_next || (c == 0x18 || c == 0x1a)) {
         ctx->discard_next = false;
@@ -1342,9 +1350,7 @@ unicode_error:
             }
             return;
         case '\b':
-            ctx->set_cursor_pos(ctx, x - 1, y);
-            ctx->raw_putchar(ctx, ' ');
-            ctx->set_cursor_pos(ctx, x - 1, y);
+            clear_char(ctx);
             return;
         case '\r':
             ctx->set_cursor_pos(ctx, 0, y);

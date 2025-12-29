@@ -2,9 +2,11 @@
 #include <mem/mem.hpp>
 #include <arch/arch.hpp>
 #include <cstdio>
+#include <config.hpp>
 
 pci_device* pci_dev_head = nullptr;
 pci_device* pci_dev_tail = nullptr;
+uint64_t n_detected = 0;
 
 #define PCI_CONFIG_ADDRESS  0xCF8
 #define PCI_CONFIG_DATA     0xCFC
@@ -79,6 +81,7 @@ bool pci_add_device(pci_device* dev) {
     }
 
     if (dev->vendor_id == 0xFFFF) return false;
+    n_detected++;
     return true;
 }
 
@@ -133,19 +136,23 @@ const char* get_type(pci_device* dev) {
 
 namespace pci {
 
-void initialise() {
+uint64_t initialise() {
     for (uint16_t bus = 0; bus < 8; bus++) {
         for (uint8_t device = 0; device < 32; device++) {
             for (uint8_t function = 0; function < 8; function++) {
                 pci_device* dev = pci_enumerate_helper(bus, device, function);
                 bool found = pci_add_device(dev);
                 if (found) {
+#ifdef PCI_CFG_VERBOSE
                     printf("Enumerated device %d:%d.%d [%s] %s (%02x / %02x / %02x) [%04X:%04X]\n\r", bus, device, function, found ? "Device present" : "Empty slot", get_type(dev), dev->class_code, dev->subclass, dev->prog_if, dev->vendor_id, dev->device_id);
                     printf("BARs: %8X %8X %8X %8X %8X %8X\n\r", dev->bars[0], dev->bars[1], dev->bars[2], dev->bars[3], dev->bars[4], dev->bars[5]);
+#endif
                 }
             }
         }
     }
+
+    return n_detected;
 }
 
 pci_device* get_device(const pci_query& query) {

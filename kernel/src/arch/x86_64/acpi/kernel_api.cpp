@@ -40,18 +40,23 @@ void uacpi_kernel_unmap(void *addr, uacpi_size len) {
     mem::vmm::munmap(_addr, pages);
 }
 
+#include <config.hpp>
 #ifndef UACPI_FORMATTED_LOGGING
 void uacpi_kernel_log(uacpi_log_level lvl, const uacpi_char* s) {
     (void)lvl;
+#ifdef ACPI_CFG_VERBOSE
     printf("[ \x1b[95mUACPI\x1b[0m ] %s", s);
+#endif
 }
 #else
 void uacpi_kernel_log(uacpi_log_level lvl, const uacpi_char* s, ...) {
+#ifdef ACPI_CFG_VERBOSE
     printf("[ UACPI ] ");
     va_list va;
     va_start(va, s);
     vprintf(s, va);
     va_end(va);
+#endif
 }
 
 void uacpi_kernel_vlog(uacpi_log_level lvl, const uacpi_char* s, uacpi_va_list va) {

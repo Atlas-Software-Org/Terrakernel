@@ -187,21 +187,13 @@ void irq_set_mask(uint8_t irq) {
 	arch::x86_64::io::outb(port, value);
 }
 
-__attribute__((interrupt))
-void dummy_handler(void*) {
-	arch::x86_64::io::inb(0x60); // consume ps2 buffer cuz we all hate you ps2 :>
-	send_eoi(0);
-	send_eoi(15);
-}
-
 void initialise() {
-	for (int i = 0; i < 0xFF; i++) {
-		set_descriptor(i, (uint64_t)dummy_handler, 0x8E);
-		if (0x20 <= i && i < 0x2F) irq_set_mask(i);
-	}
-
 	for (int i = 0; i < 0x1F; i++) {
 		set_descriptor(i, exception_stub_table[i], 0x8E);
+	}
+
+	for (int i = 0; i < 16; i++) {
+		irq_set_mask(i);
 	}
 
 	idtr.limit = sizeof(idt) - 1;

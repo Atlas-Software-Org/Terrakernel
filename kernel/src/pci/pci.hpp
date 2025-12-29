@@ -24,9 +24,7 @@ struct pci_device {
     uint8_t min_grant;
     uint8_t max_latency;
 
-    uint8_t bus;
-    uint8_t device;
-    uint8_t function;
+    uint8_t bus, device, function;
 
     pci_device* next;
 };
@@ -52,7 +50,7 @@ struct pci_query {
 
 namespace pci {
 
-void initialise();
+uint64_t initialise();
 
 pci_device* get_device(const pci_query& query);
 pci_device* get_device_bdf(uint8_t bus, uint8_t device, uint8_t function);
