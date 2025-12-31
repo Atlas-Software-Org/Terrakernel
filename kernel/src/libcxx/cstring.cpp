@@ -157,3 +157,11 @@ char* strdup(const char* s) {
 	mem::memcpy((void*)new_str, (void*)s, szs);
 	return new_str;
 }
+
+char* strndup(const char* s, unsigned int n) {
+	size_t szs = strlen(s);
+	if (szs > n) szs = n;
+	char* new_str = (char*)mem::heap::malloc(szs);
+	mem::memcpy((void*)new_str, (void*)s, szs);
+	return new_str;
+}

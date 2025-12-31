@@ -15,6 +15,7 @@ const char* exception_names[] = {
 };
 
 bool is_solvable(int excvec) {
+	return false; // for now lets solve problems
 	switch (excvec) {
 		case 0:
 		case 3:

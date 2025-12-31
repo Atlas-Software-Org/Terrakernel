@@ -8,7 +8,7 @@
 namespace mem::vmm {
 
 void* create_pagetable();
-void free_pagetable(void* pml4_ptr);
+void destroy_pagetable(void* pml4_ptr);
 void switch_pagetable(uint64_t ptr);
 void reset_pagetable();
 uint64_t fetch_default_pagetable();

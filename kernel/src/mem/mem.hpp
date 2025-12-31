@@ -34,7 +34,7 @@ namespace mem {
 		void munmap(void* vaddr, size_t npages);
 
 		void* create_pagetable();
-		void free_pagetable(void* pml4_ptr);
+		void destroy_pagetable(void* pml4_ptr);
 		uint64_t fetch_default_pagetable();
 	}
 
@@ -57,11 +57,4 @@ namespace mem {
 	int memcmp(const void* ptr1, const void* ptr2, size_t count);
 }
 
-void* operator new(size_t size);
-void operator delete(void* ptr);
-void* operator new[](size_t size);
-void operator delete[](void* ptr);
-void operator delete(void* ptr, uint64_t size);
-void operator delete[](void* ptr, uint64_t size);
-
-#endif /* MEM_HPP */
+#endif

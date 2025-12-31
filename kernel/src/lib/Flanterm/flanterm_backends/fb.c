@@ -65,7 +65,7 @@ void *memcpy(void *, const void *, size_t);
 static uint8_t bump_alloc_pool[FLANTERM_FB_BUMP_ALLOC_POOL_SIZE];
 static size_t bump_alloc_ptr = 0;
 
-static void *bump_alloc(size_t s) {
+void *bump_alloc(size_t s) {
     static bool base_offset_added = false;
     if (!base_offset_added) {
         if ((uintptr_t)bump_alloc_pool & 0xf) {

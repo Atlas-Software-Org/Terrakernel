@@ -1,6 +1,6 @@
 #include <panic.hpp>
 #include <cstring>
-#include <lib/Flanterm/ftctx.h>
+#include <lib/Flanterm/gfx.h>
 #include <drivers/serial/serial.hpp>
 #include <drivers/serial/printf.h>
 #include <cstdio>
@@ -14,11 +14,11 @@
 #include <pci/pci.hpp>
 #include <drivers/blockio/ahci.hpp>
 #include <exec/elf.hpp>
-#include <sched/sched.hpp>
 #include <drivers/input/ps2k/ps2k.hpp>
 #include <drivers/input/ps2k/ps2k_key_event.hpp>
 #include <pcie/pcie.hpp>
 #include <drivers/tty/ldisc/ldisc.hpp>
+#include <drivers/input/ps2m/ps2m.hpp>
 
 #define UACPI_ERROR(name, isinit) \
 if (uacpi_unlikely_error(uacpi_result)) { \
@@ -43,9 +43,15 @@ extern "C" void init() {
         asm volatile ("cli;hlt");
     }
 
+    mem::pmm::initialise();
+    
+    mem::vmm::initialise();
+    
     flanterm_initialise();
-       
+    
     serial::serial_enable();
+    Log::printf_status("OK", "VMM Initialised"); // late
+    Log::printf_status("OK", "PMM Initialised"); // late
     Log::printf_status("OK", "Flanterm Initialised"); // late
     Log::printf_status("OK", "Serial Initialised");
     
@@ -54,12 +60,6 @@ extern "C" void init() {
     
     arch::x86_64::cpu::idt::initialise();
     Log::printf_status("OK", "IDT Initialised");
-    
-    mem::pmm::initialise();
-    Log::printf_status("OK", "PMM Initialised");
-    
-    mem::vmm::initialise();
-    Log::printf_status("OK", "VMM Initialised");
 
 	//mem::vmm::print_mem();
 
@@ -117,20 +117,18 @@ extern "C" void init() {
 	drivers::input::ps2k::initialise();
 	Log::printf_status("OK", "PS2K Initialised");
 
+    drivers::input::ps2m::initialise();
+    Log::printf_status("OK", "PS2M Initialised");
+
 	drivers::tty::ldisc::initialise();
 	Log::printf_status("OK", "Line Discipline Initialised");
-
-    sched::initialise();
-    Log::printf_status("OK", "Scheduler Initialised");
 
 	char buf[4096] = {0};
     while (1) {
     	printf("> ");
     	size_t read = drivers::tty::ldisc::read(true, buf, 4096);
-    	printf("Read %zu characters: %s\n\r", read, buf);
-    	for (size_t i = 0; i < read; i++) {
-    		printf("%02X (%c)\n\r", buf[i], ('a' <= buf[i] && buf[i] < 'z') || ('A' <= buf[i] && buf[i] < 'Z') || ('0' <= buf[i] && buf[i] < '9') ? buf[i] : '.');
-    	}
+    	if (read > 0) printf("Read %zu characters: %s\n\r", read, buf);
+        else printf("Nothing written, how lazy...\n\r");
         asm volatile("hlt");
     }
     

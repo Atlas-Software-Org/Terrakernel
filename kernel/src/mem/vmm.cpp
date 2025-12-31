@@ -49,7 +49,7 @@ void* create_pagetable() {
     return page;
 }
 
-void free_pagetable(void* pml4_ptr) {
+void destroy_pagetable(void* pml4_ptr) {
     if (current_PML4 == reinterpret_cast<uint64_t>(pml4_ptr)) {
         reset_pagetable();
     }
